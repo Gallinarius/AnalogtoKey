@@ -67,6 +67,7 @@ AnalogtoKey works with any controller that exposes itself as a standard **Direct
 | Device | Status |
 |---|---|
 | HORI Fighting Stick Mini | ✅ Confirmed working |
+| Simworkshop TSC-X | ✅ Confirmed working |
 | Turtle Beach VelocityOne Flight (throttle quadrant) | 🔄 Expected to work — not yet verified |
 | Most USB joysticks and HOTAS systems | 🔄 Expected to work |
 | RailDriver Desktop Train Cab Controller | ❌ Not compatible — uses proprietary SDK, not DirectInput |

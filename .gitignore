@@ -7,8 +7,8 @@ installer/output/
 ManualGen/
 
 # Screenshots (generated during manual creation)
-screenshot_*.png
-screenshot*.png
+/screenshot_*.png
+/screenshot*.png
 make_manual.py
 
 # Claude Code local config

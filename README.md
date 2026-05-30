@@ -87,6 +87,16 @@ HidHide is a free, open-source kernel driver. It is bundled in the installer and
 
 ---
 
+## Found a bug?
+
+Open an issue on the [Issues page](https://github.com/Gallinarius/AnalogtoKey/issues) and describe:
+- What you did
+- What you expected to happen
+- What actually happened
+- Your Windows version and controller model
+
+---
+
 ## License
 
 This project is released for personal use. HidHide is developed by [Nefarius Software Solutions](https://github.com/nefarius/HidHide) and is subject to its own license.

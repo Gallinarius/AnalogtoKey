@@ -105,10 +105,10 @@ Status key: `[ ]` = not started · `[→]` = in progress · `[x]` = done · `[-]
 
 ## PHASE 8 — Polish and Testing
 
-- [ ] Full test with Running Train — verify correct input
-- [ ] Hot-plug test: stick disconnected and reconnected while app runs
-- [ ] Error message if no devices found at startup
-- [ ] Clean up any remaining debug code
+- [x] Full test with Running Train — verify correct input
+- [x] Hot-plug test: stick disconnected and reconnected while app runs
+- [x] Error message if no devices found at startup
+- [x] Clean up any remaining debug code
 - [x] Bug fix: Steps textbox does not rebuild axis slider on Enter/Tab — add LostFocus + PreviewKeyDown(Enter) handlers to call RebuildMappingUI()
 - [x] Bug fix: Multiple instances can run simultaneously — add named Mutex in App.xaml.cs to enforce single instance (show message + Shutdown if already running)
 
@@ -119,10 +119,10 @@ Status key: `[ ]` = not started · `[→]` = in progress · `[x]` = done · `[-]
 - [x] Release build (self-contained, no .NET required)
 - [x] Inno Setup installer (HidHide bundled as optional component)
 - [x] App renamed to AnalogtoKey, version 0.2 Beta
-- [ ] GitHub repository (git init, .gitignore, initial commit, push)
-- [ ] Publish as GitHub Release with installer as asset
-- [ ] README.md: what is AnalogtoKey, requirements, download, screenshot
-- [ ] HidHide explanation in README (when needed vs. not needed)
+- [x] GitHub repository (git init, .gitignore, initial commit, push)
+- [x] Publish as GitHub Release with installer as asset
+- [x] README.md: what is AnalogtoKey, requirements, download, screenshot
+- [x] HidHide explanation in README (when needed vs. not needed)
 
 ---
 

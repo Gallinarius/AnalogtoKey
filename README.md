@@ -60,6 +60,21 @@ HidHide is a free, open-source kernel driver. It is bundled in the installer and
 
 ---
 
+## Compatible devices
+
+AnalogtoKey works with any controller that exposes itself as a standard **DirectInput joystick** on Windows.
+
+| Device | Status |
+|---|---|
+| HORI Fighting Stick Mini | ✅ Confirmed working |
+| Turtle Beach VelocityOne Flight (throttle quadrant) | 🔄 Expected to work — not yet verified |
+| Most USB joysticks and HOTAS systems | 🔄 Expected to work |
+| RailDriver Desktop Train Cab Controller | ❌ Not compatible — uses proprietary SDK, not DirectInput |
+
+**Don't see your device?** Try it and let us know if it works via the [Issues page](https://github.com/Gallinarius/AnalogtoKey/issues). Verified devices get added to this list.
+
+---
+
 ## Requirements
 
 - Windows 10 or 11 (64-bit)

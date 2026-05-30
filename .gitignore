@@ -22,6 +22,11 @@ installer/HidHide_*.exe
 *.suo
 .vs/
 
+# Internal project files
+PLAN.md
+TODO.md
+PROJECT.md
+
 # OS
 Thumbs.db
 desktop.ini

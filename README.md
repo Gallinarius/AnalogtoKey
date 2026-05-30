@@ -20,12 +20,24 @@ No .NET installation required. Self-contained, runs on Windows 10 and 11 (64-bit
 
 ## Why does this exist?
 
-Some games — such as **Running Train** — detect any connected USB controller and force it into gamepad mode, causing incorrect or doubled input. These games *do* support keyboard input correctly.
+Many simulators are best controlled via keyboard shortcuts but have poor or forced gamepad support — causing wrong input, doubled keystrokes, or axes behaving incorrectly when a joystick or arcade stick is connected.
 
 AnalogtoKey bridges the gap:
 1. Hides the controllers from all other applications (via the HidHide driver)
 2. Reads all input directly itself
 3. Sends the correct keystrokes to the active game window
+
+Unlike TSW-specific tools, AnalogtoKey works at the Windows level — it sends real keystrokes, so it works with any simulator or game that supports keyboard input, regardless of game engine.
+
+**Known to be a good fit for:**
+- Train Sim World 2 / 3 / 4 / 5 / 6 (TSW)
+- Train Simulator Classic
+- Running Train
+- SimRail — The Railway Simulator
+- Open Rails
+- Derail Valley
+- Zusi
+- Any other sim with keyboard support but no native analog input
 
 ---
 

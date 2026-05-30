@@ -1,0 +1,217 @@
+<Window x:Class="AnalogtoKey.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="AnalogtoKey" Height="700" Width="1280"
+        Icon="app.ico"
+        MinHeight="500" MinWidth="900"
+        Background="#1E1E1E" Foreground="White"
+        PreviewKeyDown="Window_PreviewKeyDown"
+        Closing="Window_Closing"
+        SizeToContent="Manual">
+
+    <Window.Resources>
+        <Style x:Key="DarkLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#CCCCCC"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="KeyButton" TargetType="Button">
+            <Setter Property="Background" Value="#2D2D2D"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#555"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontFamily" Value="Consolas"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="MinWidth" Value="110"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="DarkCombo" TargetType="ComboBox">
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <Border x:Name="Border" Background="#2D2D2D" BorderBrush="#555555"
+                                    BorderThickness="1" CornerRadius="3">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="22"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ContentPresenter Grid.Column="0" Margin="8,0,0,0"
+                                                      VerticalAlignment="Center"
+                                                      Content="{TemplateBinding SelectionBoxItem}"
+                                                      ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                      IsHitTestVisible="False">
+                                        <ContentPresenter.Resources>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="White"/>
+                                                <Setter Property="FontFamily" Value="Segoe UI"/>
+                                                <Setter Property="FontSize" Value="13"/>
+                                            </Style>
+                                        </ContentPresenter.Resources>
+                                    </ContentPresenter>
+                                    <ToggleButton Grid.Column="0" Grid.ColumnSpan="2"
+                                                  IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                                  Opacity="0" Focusable="False"/>
+                                    <TextBlock Grid.Column="1" Text="▾" Foreground="#AAAAAA"
+                                               VerticalAlignment="Center" HorizontalAlignment="Center"
+                                               IsHitTestVisible="False"/>
+                                </Grid>
+                            </Border>
+                            <Popup IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   Placement="Bottom" AllowsTransparency="True" Focusable="False"
+                                   PopupAnimation="Slide">
+                                <Border Background="#252526" BorderBrush="#555555" BorderThickness="1"
+                                        MaxHeight="300" MinWidth="{TemplateBinding ActualWidth}">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <ItemsPresenter/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Background" Value="#252526"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Style.Triggers>
+                <Trigger Property="IsHighlighted" Value="True">
+                    <Setter Property="Background" Value="#1565C0"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#0D47A1"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <DockPanel>
+
+        <!-- Top toolbar -->
+        <Border DockPanel.Dock="Top" Background="#252526" Padding="12,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="AnalogtoKey" FontSize="18" FontWeight="Bold"
+                               Foreground="#4FC3F7" VerticalAlignment="Center" Margin="0,0,20,0"/>
+                    <TextBlock Text="Profile:" Style="{StaticResource DarkLabel}" Margin="0,0,6,0"/>
+                    <ComboBox x:Name="ProfileCombo" Width="180" Height="28"
+                              Style="{StaticResource DarkCombo}"
+                              SelectionChanged="ProfileCombo_SelectionChanged"/>
+                    <Button Content="+ New" Margin="6,0,0,0" Height="28" Padding="10,0"
+                            Style="{StaticResource KeyButton}" Click="NewProfile_Click"/>
+                    <Button Content="Delete" Margin="4,0,0,0" Height="28" Padding="10,0"
+                            Style="{StaticResource KeyButton}" Click="DeleteProfile_Click"/>
+                    <Button Content="Copy" Margin="4,0,0,0" Height="28" Padding="10,0"
+                            Style="{StaticResource KeyButton}" Click="CopyProfile_Click"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <Button Content="📖 Manual" Height="28" Padding="12,0"
+                            Margin="0,0,6,0"
+                            Style="{StaticResource KeyButton}"
+                            Background="#2D2D2D" Click="OpenManual_Click"
+                            ToolTip="Open user guide (PDF)"/>
+                    <Button Content="💾 Save profile" Height="28" Padding="12,0"
+                            Style="{StaticResource KeyButton}"
+                            Background="#1565C0" Click="SaveProfile_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Controller selector -->
+        <Border DockPanel.Dock="Top" Background="#1E2030" Padding="12,8"
+                BorderBrush="#333" BorderThickness="0,1,0,1">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="Controller:" Foreground="#AAAAAA" FontFamily="Segoe UI"
+                           FontSize="13" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <ComboBox x:Name="ControllerCombo" Width="340" Height="28"
+                          Style="{StaticResource DarkCombo}"
+                          SelectionChanged="ControllerCombo_SelectionChanged"/>
+                <Ellipse x:Name="ControllerDot" Width="8" Height="8" Fill="#FF5252"
+                         VerticalAlignment="Center" Margin="14,0,6,0"/>
+                <TextBlock x:Name="ControllerStatusText" Text="Not connected"
+                           Foreground="#AAAAAA" FontFamily="Segoe UI" FontSize="12"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
+        <!-- HidHide warning banner (visible only if not installed) -->
+        <Border x:Name="HidHideWarningBanner" DockPanel.Dock="Top"
+                Background="#7B1515" Padding="12,8" Visibility="Collapsed">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"
+                           Text="⚠  HidHide is not installed. Some games (e.g. Running Train) will send double input — both controller and keystrokes. Install HidHide to hide the controller from other apps."
+                           Foreground="White" FontFamily="Segoe UI" FontSize="12"
+                           VerticalAlignment="Center" TextWrapping="Wrap"/>
+                <Button Grid.Column="1" Content="Install HidHide"
+                        Margin="16,0,0,0" Height="30" Padding="14,0"
+                        Click="InstallHidHide_Click"
+                        Background="#C62828" Foreground="White"
+                        BorderBrush="#EF9A9A" BorderThickness="1"
+                        FontFamily="Segoe UI" FontSize="12" Cursor="Hand"/>
+            </Grid>
+        </Border>
+
+        <!-- Status bar -->
+        <Border DockPanel.Dock="Top" Background="#1A1A2E" Padding="12,6">
+            <StackPanel Orientation="Horizontal">
+                <Ellipse x:Name="StatusDot" Width="10" Height="10" Margin="0,0,8,0"
+                         Fill="#FF5252" VerticalAlignment="Center"/>
+                <TextBlock x:Name="StatusText" Text="Searching for controllers..."
+                           Foreground="#AAAAAA" FontFamily="Segoe UI" FontSize="12"
+                           VerticalAlignment="Center"/>
+                <TextBlock Text="  |  " Foreground="#444" VerticalAlignment="Center"/>
+                <TextBlock x:Name="LastKeyText" Text="Last: —"
+                           Foreground="#81C784" FontFamily="Consolas" FontSize="12"
+                           VerticalAlignment="Center"/>
+                <TextBlock x:Name="CaptureHint" Text=""
+                           Foreground="#FFCA28" FontFamily="Segoe UI" FontSize="12"
+                           VerticalAlignment="Center" Margin="20,0,0,0"/>
+                <TextBlock Text="  |  " Foreground="#444" VerticalAlignment="Center"/>
+                <Ellipse x:Name="HidHideDot" Width="10" Height="10" Margin="0,0,6,0"
+                         Fill="#FF5252" VerticalAlignment="Center"/>
+                <TextBlock x:Name="HidHideText" Text="HidHide: —"
+                           Foreground="#AAAAAA" FontFamily="Segoe UI" FontSize="12"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Mapping panel -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel x:Name="MappingPanel" Margin="16,10"/>
+        </ScrollViewer>
+
+    </DockPanel>
+</Window>

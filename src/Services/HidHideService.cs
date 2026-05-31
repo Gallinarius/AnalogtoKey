@@ -52,8 +52,26 @@ public class HidHideService : IDisposable
             }
             catch { }
         }
-        try { _svc.IsActive = true; } catch { }
-        _isHiding = true;
+        bool activated = false;
+        while (!activated)
+        {
+            try
+            {
+                _svc.IsActive = true;
+                activated = true;
+            }
+            catch
+            {
+                var result = System.Windows.MessageBox.Show(
+                    "Could not activate device hiding — another process is using the HidHide API.\n\n" +
+                    "Close the HidHide Configuration Client, then click Retry.",
+                    "HidHide",
+                    System.Windows.MessageBoxButton.RetryCancel,
+                    System.Windows.MessageBoxImage.Warning);
+                if (result != System.Windows.MessageBoxResult.Retry) break;
+            }
+        }
+        _isHiding = activated;
     }
 
     public void RestoreDevices()

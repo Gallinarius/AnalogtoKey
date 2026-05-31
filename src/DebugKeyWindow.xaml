@@ -1,0 +1,34 @@
+<Window x:Class="AnalogtoKey.DebugKeyWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Key Debug — [S]=Synthetic [P]=Physical"
+        Height="420" Width="480"
+        Background="#1E1E1E" Foreground="White"
+        WindowStyle="ToolWindow" Topmost="True"
+        ResizeMode="CanResize">
+    <Grid Margin="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,6" Grid.Row="0">
+            <CheckBox x:Name="ModifiersOnlyCheckbox"
+                      Content="Modifiers only (Alt/Ctrl/Shift/Win)"
+                      Foreground="#CCCCCC" VerticalAlignment="Center"
+                      Checked="Filter_Changed" Unchecked="Filter_Changed"/>
+            <Button Content="Clear" Margin="10,0,0,0" Padding="10,3"
+                    Click="Clear_Click"
+                    Background="#333333" Foreground="White"
+                    BorderBrush="#555555" Cursor="Hand"/>
+        </StackPanel>
+
+        <TextBox x:Name="LogBox" Grid.Row="1"
+                 Background="#0D0D0D" Foreground="#00FF99"
+                 FontFamily="Consolas" FontSize="12"
+                 IsReadOnly="True"
+                 VerticalScrollBarVisibility="Auto"
+                 HorizontalScrollBarVisibility="Auto"
+                 BorderBrush="#333333" Padding="6"/>
+    </Grid>
+</Window>

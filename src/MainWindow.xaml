@@ -131,9 +131,16 @@
                             Style="{StaticResource KeyButton}" Click="DeleteProfile_Click"/>
                     <Button Content="Copy" Margin="4,0,0,0" Height="28" Padding="10,0"
                             Style="{StaticResource KeyButton}" Click="CopyProfile_Click"/>
+                    <Button Content="Rename" Margin="4,0,0,0" Height="28" Padding="10,0"
+                            Style="{StaticResource KeyButton}" Click="RenameProfile_Click"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <Button Content="🔍 Debug" Height="28" Padding="10,0"
+                            Margin="0,0,6,0" Visibility="Collapsed"
+                            Style="{StaticResource KeyButton}"
+                            Background="#2D2D2D" Click="OpenDebug_Click"
+                            ToolTip="Monitor all key events system-wide"/>
                     <Button Content="📖 Manual" Height="28" Padding="12,0"
                             Margin="0,0,6,0"
                             Style="{StaticResource KeyButton}"

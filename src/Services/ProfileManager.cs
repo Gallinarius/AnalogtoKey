@@ -104,6 +104,21 @@ namespace AnalogtoKey.Services
             if (File.Exists(path)) File.Delete(path);
         }
 
+        /// <summary>Omdøber profil. Returnerer false hvis nyt navn er tomt eller allerede eksisterer.</summary>
+        public bool Rename(string oldName, string newName)
+        {
+            newName = newName.Trim();
+            if (string.IsNullOrEmpty(newName)) return false;
+            if (string.Equals(oldName, newName, StringComparison.OrdinalIgnoreCase)) return true;
+            if (File.Exists(GetPath(newName))) return false;
+
+            var profile = Load(oldName);
+            profile.Name = newName;
+            Save(profile);
+            File.Delete(GetPath(oldName));
+            return true;
+        }
+
         private static string GetPath(string name) =>
             Path.Combine(ProfileDir, $"{name}.json");
     }

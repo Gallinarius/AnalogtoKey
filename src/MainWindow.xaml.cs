@@ -266,6 +266,24 @@ public partial class MainWindow : Window
         ProfileCombo.SelectedItem = copy.Name;
     }
 
+    private void RenameProfile_Click(object sender, RoutedEventArgs e)
+    {
+        var oldName = _currentProfile.Name;
+        var dlg = new InputDialog("Rename profile", "New name:", oldName) { Owner = this };
+        if (dlg.ShowDialog() != true || string.IsNullOrWhiteSpace(dlg.Result)) return;
+        var newName = dlg.Result.Trim();
+        if (!_profileManager.Rename(oldName, newName))
+        {
+            MessageBox.Show($"Could not rename — '{newName}' already exists or name is invalid.",
+                "Rename", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+        _currentProfile.Name = newName;
+        _profileManager.SaveLastProfile(newName);
+        RefreshProfileList();
+        ProfileCombo.SelectedItem = newName;
+    }
+
     private void DeleteProfile_Click(object sender, RoutedEventArgs e)
     {
         if (ProfileCombo.SelectedItem is not string name) return;
@@ -973,6 +991,15 @@ public partial class MainWindow : Window
             HidHideText.Text            = "HidHide: Inactive";
             HidHideWarningBanner.Visibility = Visibility.Collapsed;
         }
+    }
+
+    private DebugKeyWindow? _debugWindow;
+    private void OpenDebug_Click(object sender, RoutedEventArgs e)
+    {
+        if (_debugWindow == null || !_debugWindow.IsLoaded)
+            _debugWindow = new DebugKeyWindow();
+        _debugWindow.Show();
+        _debugWindow.Activate();
     }
 
     private void OpenManual_Click(object sender, RoutedEventArgs e)

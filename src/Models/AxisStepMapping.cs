@@ -26,7 +26,7 @@ public class AxisStepMapping
     public ushort CpDownKey { get; set; } = 0;
 
     // Dead zone % around center axis (1–49) — used by Center and CP modes
-    public int DeadZonePercent { get; set; } = 10;
+    public int DeadZonePercent { get; set; } = 5;
 
     public int CalMin { get; set; } = 0;
     public int CalMax { get; set; } = 65535;

@@ -6,7 +6,7 @@ AnalogtoKey reads input from USB joysticks and arcade sticks and converts every 
 
 ## Download
 
-➡ **[Download AnalogtoKey_Setup_v0.2_Beta.exe](https://github.com/Gallinarius/AnalogtoKey/releases/latest)**
+➡ **[Download AnalogtoKey_Setup_v0.3.1_Beta.exe](https://github.com/Gallinarius/AnalogtoKey/releases/latest)**
 
 No .NET installation required. Self-contained, runs on Windows 10 and 11 (64-bit).
 
@@ -45,8 +45,13 @@ Unlike TSW-specific tools, AnalogtoKey works at the Windows level — it sends r
 
 - Map any **button** (1–16) to any keyboard key
 - Map all **8 D-pad directions** independently
-- Map **analog axes** (X/Y/Z/Rx/Ry/Rz) with adjustable step count and MIN/MAX calibration
+- Map **analog axes** (X/Y/Z/Rx/Ry/Rz) with three modes:
+  - **Steps Mode** — axis sends a keypress per step (up to 99 steps, MIN/MAX calibration)
+  - **Center Mode** — splits axis at centre with a configurable dead zone; throttle and brake get independent step counts (e.g. 9 throttle + 9 brake = 19 positions)
+  - **Constant Pressure** — holds a key down while the axis is past the dead zone, releases when back to neutral
+  - Modes can be combined freely
 - **Multiple named profiles** — switch instantly between games
+- **Rename profiles** directly in the toolbar
 - **System tray** — runs silently in the background, always available
 - **HidHide integration** — automatically hides controllers on start, restores on exit
 - PDF user guide included
@@ -55,7 +60,7 @@ Unlike TSW-specific tools, AnalogtoKey works at the Windows level — it sends r
 
 ## Installation
 
-1. Download `AnalogtoKey_Setup_v0.2_Beta.exe` from [Releases](https://github.com/Gallinarius/AnalogtoKey/releases/latest)
+1. Download `AnalogtoKey_Setup_v0.3.1_Beta.exe` from [Releases](https://github.com/Gallinarius/AnalogtoKey/releases/latest)
 2. Run it (administrator rights may be required)
 3. The installer offers to install the **HidHide** driver — recommended for Running Train and similar games
 4. Restart Windows if HidHide was installed

@@ -697,7 +697,7 @@ public partial class MainWindow : Window
                 {
                     var g = new Grid { Margin = new Thickness(0, 2, 0, 2) };
                     g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(105) });
-                    g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(76) });
+                    g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
                     g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                     g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });
 

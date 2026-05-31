@@ -605,6 +605,48 @@ public partial class MainWindow : Window
         // ── Mode checkboxes ─────────────────────────────────────────
         var modeRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 6) };
 
+        // Fælles spinner-felt: [tekstboks | lodret skillelinje | ▲▼ knapper] i én shared border
+        (UIElement ctrl, TextBox tb) MakeNumField(int val, int min, int max, Func<int> getV, Action<int> setV, int w = 40)
+        {
+            var outer = new Border
+            {
+                BorderBrush = new SolidColorBrush(Color.FromRgb(80, 80, 80)), BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(2), Background = new SolidColorBrush(Color.FromRgb(45, 45, 45)),
+                VerticalAlignment = VerticalAlignment.Center, Height = 24
+            };
+            var g = new Grid();
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
+
+            var box = new TextBox
+            {
+                Text = val.ToString(), Foreground = Brushes.White, Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0), TextAlignment = TextAlignment.Center,
+                FontFamily = new FontFamily("Consolas"), FontSize = 12,
+                VerticalContentAlignment = VerticalAlignment.Center
+            };
+            box.TextChanged    += (_, _) => { if (int.TryParse(box.Text, out int v) && v >= min && v <= max) setV(v); };
+            box.LostFocus      += (_, _) => { if (int.TryParse(box.Text, out int v) && v >= min && v <= max) { setV(v); RebuildMappingUI(); } else box.Text = getV().ToString(); };
+            box.PreviewKeyDown += (_, e) => { if (e.Key == Key.Enter && int.TryParse(box.Text, out int v) && v >= min && v <= max) { setV(v); RebuildMappingUI(); } };
+            Grid.SetColumn(box, 0);
+
+            var sep = new Border { Background = new SolidColorBrush(Color.FromRgb(80, 80, 80)) };
+            Grid.SetColumn(sep, 1);
+
+            var btnSp = new StackPanel { Orientation = Orientation.Vertical };
+            var btnUp = new System.Windows.Controls.Primitives.RepeatButton { Content = "▲", Height = 12, Delay = 400, Interval = 80, FontSize = 7, Padding = new Thickness(0), Background = Brushes.Transparent, Foreground = new SolidColorBrush(Color.FromRgb(190, 190, 190)), BorderThickness = new Thickness(0, 0, 0, 1), BorderBrush = new SolidColorBrush(Color.FromRgb(80, 80, 80)) };
+            var btnDn = new System.Windows.Controls.Primitives.RepeatButton { Content = "▼", Height = 12, Delay = 400, Interval = 80, FontSize = 7, Padding = new Thickness(0), Background = Brushes.Transparent, Foreground = new SolidColorBrush(Color.FromRgb(190, 190, 190)), BorderThickness = new Thickness(0) };
+            btnUp.Click += (_, _) => { int v = Math.Clamp(getV() + 1, min, max); setV(v); box.Text = v.ToString(); RebuildMappingUI(); };
+            btnDn.Click += (_, _) => { int v = Math.Clamp(getV() - 1, min, max); setV(v); box.Text = v.ToString(); RebuildMappingUI(); };
+            btnSp.Children.Add(btnUp); btnSp.Children.Add(btnDn);
+            Grid.SetColumn(btnSp, 2);
+
+            g.Children.Add(box); g.Children.Add(sep); g.Children.Add(btnSp);
+            outer.Child = g;
+            return (outer, box);
+        }
+
         CheckBox MakeCb(string label, bool isChecked, Action<bool> onChange)
         {
             var cb = new CheckBox
@@ -634,26 +676,8 @@ public partial class MainWindow : Window
                 FontFamily = new FontFamily("Segoe UI"), FontSize = 12,
                 VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0)
             });
-            var dzBox = new TextBox
-            {
-                Text = axMap.DeadZonePercent.ToString(), Width = 40, Height = 24,
-                Background = new SolidColorBrush(Color.FromRgb(45, 45, 45)), Foreground = Brushes.White,
-                BorderBrush = new SolidColorBrush(Color.FromRgb(80, 80, 80)), BorderThickness = new Thickness(1),
-                TextAlignment = TextAlignment.Center, FontFamily = new FontFamily("Consolas"), FontSize = 12,
-                VerticalContentAlignment = VerticalAlignment.Center
-            };
-            dzBox.TextChanged    += (_, _) => { if (int.TryParse(dzBox.Text, out int dz) && dz >= 1 && dz <= 95) axMap.DeadZonePercent = dz; };
-            dzBox.LostFocus      += (_, _) => { if (int.TryParse(dzBox.Text, out int dz) && dz >= 1 && dz <= 95) { axMap.DeadZonePercent = dz; RebuildMappingUI(); } };
-            dzBox.PreviewKeyDown += (_, e) => { if (e.Key == Key.Enter && int.TryParse(dzBox.Text, out int dz) && dz >= 1 && dz <= 95) { axMap.DeadZonePercent = dz; RebuildMappingUI(); } };
-            dzRow.Children.Add(dzBox);
-            var dzSpinner = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(2, 0, 2, 0), VerticalAlignment = VerticalAlignment.Center };
-            var dzUp = new System.Windows.Controls.Primitives.RepeatButton { Content = "▲", Width = 20, Height = 12, Delay = 400, Interval = 80, FontSize = 7, Padding = new Thickness(0), Background = new SolidColorBrush(Color.FromRgb(50, 50, 70)), Foreground = Brushes.White, BorderBrush = new SolidColorBrush(Color.FromRgb(80, 80, 80)), BorderThickness = new Thickness(1) };
-            var dzDn = new System.Windows.Controls.Primitives.RepeatButton { Content = "▼", Width = 20, Height = 12, Delay = 400, Interval = 80, FontSize = 7, Padding = new Thickness(0), Background = new SolidColorBrush(Color.FromRgb(50, 50, 70)), Foreground = Brushes.White, BorderBrush = new SolidColorBrush(Color.FromRgb(80, 80, 80)), BorderThickness = new Thickness(1) };
-            dzUp.Click += (_, _) => { int v = Math.Clamp(axMap.DeadZonePercent + 1, 1, 95); axMap.DeadZonePercent = v; dzBox.Text = v.ToString(); };
-            dzDn.Click += (_, _) => { int v = Math.Clamp(axMap.DeadZonePercent - 1, 1, 95); axMap.DeadZonePercent = v; dzBox.Text = v.ToString(); };
-            dzSpinner.Children.Add(dzUp);
-            dzSpinner.Children.Add(dzDn);
-            dzRow.Children.Add(dzSpinner);
+            var (dzCtrl, _) = MakeNumField(axMap.DeadZonePercent, 1, 95, () => axMap.DeadZonePercent, v => axMap.DeadZonePercent = v);
+            dzRow.Children.Add(dzCtrl);
             dzRow.Children.Add(new TextBlock
             {
                 Text = "%", Foreground = new SolidColorBrush(Color.FromRgb(150, 150, 150)),
@@ -669,7 +693,7 @@ public partial class MainWindow : Window
             if (axMap.UseCenter)
             {
                 // Two rows — each with independent Steps + key button
-                UIElement MakeCenterStepRow(string rowLabel, int steps, ushort vk, string keyType, Action<int> onStepsChange)
+                UIElement MakeCenterStepRow(string rowLabel, int steps, Func<int> getSteps, ushort vk, string keyType, Action<int> onStepsChange)
                 {
                     var g = new Grid { Margin = new Thickness(0, 2, 0, 2) };
                     g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(105) });
@@ -692,26 +716,8 @@ public partial class MainWindow : Window
                         FontFamily = new FontFamily("Segoe UI"), FontSize = 11,
                         VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0)
                     });
-                    var sb2 = new TextBox
-                    {
-                        Text = steps.ToString(), Width = 34, Height = 22,
-                        Background = new SolidColorBrush(Color.FromRgb(45, 45, 45)), Foreground = Brushes.White,
-                        BorderBrush = new SolidColorBrush(Color.FromRgb(80, 80, 80)), BorderThickness = new Thickness(1),
-                        TextAlignment = TextAlignment.Center, FontFamily = new FontFamily("Consolas"), FontSize = 11,
-                        VerticalContentAlignment = VerticalAlignment.Center
-                    };
-                    sb2.TextChanged    += (_, _) => { if (int.TryParse(sb2.Text, out int s) && s >= 1 && s <= 99) onStepsChange(s); };
-                    sb2.LostFocus      += (_, _) => { if (int.TryParse(sb2.Text, out int s) && s >= 1 && s <= 99) { onStepsChange(s); RebuildMappingUI(); } };
-                    sb2.PreviewKeyDown += (_, e) => { if (e.Key == Key.Enter && int.TryParse(sb2.Text, out int s) && s >= 1 && s <= 99) { onStepsChange(s); RebuildMappingUI(); } };
-                    stepsSp.Children.Add(sb2);
-                    var cSpin = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(2, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
-                    var cUp = new System.Windows.Controls.Primitives.RepeatButton { Content = "▲", Width = 18, Height = 11, Delay = 400, Interval = 80, FontSize = 7, Padding = new Thickness(0), Background = new SolidColorBrush(Color.FromRgb(50, 50, 70)), Foreground = Brushes.White, BorderBrush = new SolidColorBrush(Color.FromRgb(80, 80, 80)), BorderThickness = new Thickness(1) };
-                    var cDn = new System.Windows.Controls.Primitives.RepeatButton { Content = "▼", Width = 18, Height = 11, Delay = 400, Interval = 80, FontSize = 7, Padding = new Thickness(0), Background = new SolidColorBrush(Color.FromRgb(50, 50, 70)), Foreground = Brushes.White, BorderBrush = new SolidColorBrush(Color.FromRgb(80, 80, 80)), BorderThickness = new Thickness(1) };
-                    cUp.Click += (_, _) => { int v = Math.Clamp(int.TryParse(sb2.Text, out int cur) ? cur + 1 : 1, 1, 99); onStepsChange(v); sb2.Text = v.ToString(); RebuildMappingUI(); };
-                    cDn.Click += (_, _) => { int v = Math.Clamp(int.TryParse(sb2.Text, out int cur) ? cur - 1 : 1, 1, 99); onStepsChange(v); sb2.Text = v.ToString(); RebuildMappingUI(); };
-                    cSpin.Children.Add(cUp);
-                    cSpin.Children.Add(cDn);
-                    stepsSp.Children.Add(cSpin);
+                    var (stepsWidget, _) = MakeNumField(steps, 1, 99, getSteps, onStepsChange, 34);
+                    stepsSp.Children.Add(stepsWidget);
                     Grid.SetColumn(stepsSp, 1);
 
                     var keyBtn = new Button
@@ -744,8 +750,8 @@ public partial class MainWindow : Window
                     return g;
                 }
 
-                sp.Children.Add(MakeCenterStepRow("Throttle (Up) ▲",  axMap.StepsUp,   axMap.UpKey,   "axisup",   v => axMap.StepsUp   = v));
-                sp.Children.Add(MakeCenterStepRow("Brake (Down) ▼",   axMap.StepsDown, axMap.DownKey, "axisdown", v => axMap.StepsDown = v));
+                sp.Children.Add(MakeCenterStepRow("Throttle (Up) ▲",  axMap.StepsUp,   () => axMap.StepsUp,   axMap.UpKey,   "axisup",   v => axMap.StepsUp   = v));
+                sp.Children.Add(MakeCenterStepRow("Brake (Down) ▼",   axMap.StepsDown, () => axMap.StepsDown, axMap.DownKey, "axisdown", v => axMap.StepsDown = v));
             }
             else
             {
@@ -757,26 +763,8 @@ public partial class MainWindow : Window
                     FontFamily = new FontFamily("Segoe UI"), FontSize = 12,
                     VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0)
                 });
-                var stepsBox = new TextBox
-                {
-                    Text = axMap.StepsUp.ToString(), Width = 40, Height = 24,
-                    Background = new SolidColorBrush(Color.FromRgb(45, 45, 45)), Foreground = Brushes.White,
-                    BorderBrush = new SolidColorBrush(Color.FromRgb(80, 80, 80)), BorderThickness = new Thickness(1),
-                    TextAlignment = TextAlignment.Center, FontFamily = new FontFamily("Consolas"), FontSize = 12,
-                    VerticalContentAlignment = VerticalAlignment.Center
-                };
-                stepsBox.TextChanged    += (_, _) => { if (int.TryParse(stepsBox.Text, out int s) && s >= 1 && s <= 99) axMap.StepsUp = s; };
-                stepsBox.LostFocus      += (_, _) => { if (int.TryParse(stepsBox.Text, out int s) && s >= 1 && s <= 99) { axMap.StepsUp = s; RebuildMappingUI(); } };
-                stepsBox.PreviewKeyDown += (_, e) => { if (e.Key == Key.Enter && int.TryParse(stepsBox.Text, out int s) && s >= 1 && s <= 99) { axMap.StepsUp = s; RebuildMappingUI(); } };
-                stepsRow.Children.Add(stepsBox);
-                var stSpin = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(2, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
-                var stUp = new System.Windows.Controls.Primitives.RepeatButton { Content = "▲", Width = 20, Height = 12, Delay = 400, Interval = 80, FontSize = 7, Padding = new Thickness(0), Background = new SolidColorBrush(Color.FromRgb(50, 50, 70)), Foreground = Brushes.White, BorderBrush = new SolidColorBrush(Color.FromRgb(80, 80, 80)), BorderThickness = new Thickness(1) };
-                var stDn = new System.Windows.Controls.Primitives.RepeatButton { Content = "▼", Width = 20, Height = 12, Delay = 400, Interval = 80, FontSize = 7, Padding = new Thickness(0), Background = new SolidColorBrush(Color.FromRgb(50, 50, 70)), Foreground = Brushes.White, BorderBrush = new SolidColorBrush(Color.FromRgb(80, 80, 80)), BorderThickness = new Thickness(1) };
-                stUp.Click += (_, _) => { int v = Math.Clamp(axMap.StepsUp + 1, 1, 99); axMap.StepsUp = v; stepsBox.Text = v.ToString(); RebuildMappingUI(); };
-                stDn.Click += (_, _) => { int v = Math.Clamp(axMap.StepsUp - 1, 1, 99); axMap.StepsUp = v; stepsBox.Text = v.ToString(); RebuildMappingUI(); };
-                stSpin.Children.Add(stUp);
-                stSpin.Children.Add(stDn);
-                stepsRow.Children.Add(stSpin);
+                var (stepsCtrl, _) = MakeNumField(axMap.StepsUp, 1, 99, () => axMap.StepsUp, v => axMap.StepsUp = v);
+                stepsRow.Children.Add(stepsCtrl);
                 sp.Children.Add(stepsRow);
 
                 var (upRow, upBtn)     = MakeRow("Up ▲",   axMap.UpKey,   guid, "axisup",   axisIdx);

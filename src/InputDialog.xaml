@@ -1,7 +1,7 @@
 <Window x:Class="AnalogtoKey.InputDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="AnalogtoKey" Height="150" Width="340"
+        Title="AnalogtoKey" Height="170" Width="340"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         Background="#252526" Foreground="White"

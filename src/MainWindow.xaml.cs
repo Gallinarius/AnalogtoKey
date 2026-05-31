@@ -36,7 +36,8 @@ public partial class MainWindow : Window
         Border OuterBorder,
         RowDefinition? EmptyRow,
         RowDefinition? FilledRow,
-        Border[]? Segments);
+        Border[]? Segments,
+        int NeutralSegIdx);  // -1 = standard bar; ≥0 = index of neutral segment in center-mode bar
     private AxisBar[] _axisBars = Array.Empty<AxisBar>();
 
     // Tast-fangst
@@ -381,8 +382,14 @@ public partial class MainWindow : Window
             bool   isAssigned = assignedAxes.Contains(axisName);
             string label      = axisName[4..]; // "AxisX"→"X", "AxisRx"→"Rx"
             var    slot       = mapping.AxisMappings.FirstOrDefault(a => a.AxisName == axisName);
-            bool   segmented  = slot != null && slot.Steps > 1;
-            int    N          = segmented ? slot!.Steps : 1;
+
+            // Determine bar type
+            bool centerMode = slot != null && slot.UseCenter && slot.UseStandard;
+            bool segmented  = centerMode || (slot != null && slot.UseStandard && slot.StepsUp > 1);
+            int  N          = centerMode
+                ? slot!.StepsDown + 1 + slot.StepsUp
+                : (segmented ? slot!.StepsUp : 1);
+            int  neutralIdx = centerMode ? slot!.StepsDown : -1;
 
             RowDefinition? emptyRow  = null;
             RowDefinition? filledRow = null;
@@ -391,22 +398,25 @@ public partial class MainWindow : Window
 
             if (segmented)
             {
-                // N felter stablet: s=N-1 øverst i StackPanel, s=0 nederst
+                // s=N-1 øverst i StackPanel, s=0 nederst
                 segments = new Border[N];
                 int segH = Math.Max(3, (66 - (N - 1)) / N);
                 var sp   = new StackPanel { Orientation = Orientation.Vertical };
 
                 for (int s = N - 1; s >= 0; s--)
                 {
+                    bool isNeutralSeg = neutralIdx >= 0 && s == neutralIdx;
                     var seg = new Border
                     {
-                        Height          = segH,
-                        Background      = new SolidColorBrush(Color.FromRgb(30, 30, 48)),
-                        CornerRadius    = new CornerRadius(1),
-                        Margin          = new Thickness(1, 0, 1, s > 0 ? 1 : 0)
+                        Height       = segH,
+                        Background   = new SolidColorBrush(isNeutralSeg
+                            ? Color.FromRgb(70, 70, 90)
+                            : Color.FromRgb(30, 30, 48)),
+                        CornerRadius = new CornerRadius(1),
+                        Margin       = new Thickness(1, 0, 1, s > 0 ? 1 : 0)
                     };
                     sp.Children.Add(seg);
-                    segments[s] = seg; // segments[0]=bund, segments[N-1]=top
+                    segments[s] = seg;
                 }
                 inner = sp;
             }
@@ -460,7 +470,7 @@ public partial class MainWindow : Window
             item.Children.Add(lbl);
             container.Children.Add(item);
 
-            bars.Add(new AxisBar(axisName, outerBorder, emptyRow, filledRow, segments));
+            bars.Add(new AxisBar(axisName, outerBorder, emptyRow, filledRow, segments, neutralIdx));
         }
 
         _axisBars = bars.ToArray();
@@ -551,46 +561,34 @@ public partial class MainWindow : Window
         };
         var sp = new StackPanel();
 
-        // ── Navn-felt (full bredde, bruger-defineret) ─────────────
-        var nameGrid = new Grid { Margin = new Thickness(0, 0, 0, 6) };
+        // ── Name ───────────────────────────────────────────────────
+        var nameGrid = new Grid { Margin = new Thickness(0, 0, 0, 4) };
         nameGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(46) });
         nameGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
         var nameLbl = new TextBlock
         {
             Text = "Name:", Foreground = new SolidColorBrush(Color.FromRgb(130, 130, 130)),
-            FontFamily = new FontFamily("Segoe UI"), FontSize = 11,
-            VerticalAlignment = VerticalAlignment.Center
+            FontFamily = new FontFamily("Segoe UI"), FontSize = 11, VerticalAlignment = VerticalAlignment.Center
         };
         Grid.SetColumn(nameLbl, 0);
-
         var nameBox = new TextBox
         {
-            Text             = axMap.Label,
-            Foreground       = new SolidColorBrush(Color.FromRgb(150, 200, 255)),
-            Background       = Brushes.Transparent,
-            BorderBrush      = new SolidColorBrush(Color.FromRgb(60, 60, 90)),
-            BorderThickness  = new Thickness(0, 0, 0, 1),
-            FontFamily       = new FontFamily("Segoe UI"),
-            FontSize         = 13,
-            FontWeight       = FontWeights.SemiBold,
-            VerticalContentAlignment = VerticalAlignment.Center,
-            ToolTip          = "Name for this axis mapping (e.g. Throttle, Brake…)"
+            Text = axMap.Label,
+            Foreground = new SolidColorBrush(Color.FromRgb(150, 200, 255)),
+            Background = Brushes.Transparent,
+            BorderBrush = new SolidColorBrush(Color.FromRgb(60, 60, 90)), BorderThickness = new Thickness(0, 0, 0, 1),
+            FontFamily = new FontFamily("Segoe UI"), FontSize = 13, FontWeight = FontWeights.SemiBold,
+            VerticalContentAlignment = VerticalAlignment.Center
         };
         nameBox.TextChanged += (_, _) => axMap.Label = nameBox.Text;
         nameBox.LostFocus   += (_, _) => RebuildMappingUI();
         Grid.SetColumn(nameBox, 1);
-
         nameGrid.Children.Add(nameLbl);
         nameGrid.Children.Add(nameBox);
         sp.Children.Add(nameGrid);
 
-        // ── Akse + Trin (2 kolonner, ingen gentaget navn) ─────────
-        var row1 = new Grid { Margin = new Thickness(0, 0, 0, 4) };
-        row1.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        row1.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
-
-        var axisCombo = new ComboBox { Height = 26, Margin = new Thickness(0, 0, 8, 0), Style = TryFindRes("DarkCombo") as Style };
+        // ── Axis combo ─────────────────────────────────────────────
+        var axisCombo = new ComboBox { Height = 26, Margin = new Thickness(0, 0, 0, 4), Style = TryFindRes("DarkCombo") as Style };
         _axisNameCombo = axisCombo;
         foreach (var ax in AxisNames) axisCombo.Items.Add(ax);
         axisCombo.SelectedItem = AxisNames.Contains(axMap.AxisName) ? axMap.AxisName : AxisNames[0];
@@ -599,43 +597,192 @@ public partial class MainWindow : Window
             var newName = axisCombo.SelectedItem?.ToString() ?? "AxisX";
             if (newName == axMap.AxisName) return;
             axMap.AxisName = newName;
-            Array.Fill(_mapper.GetPrevSteps(guid), -1);
+            _mapper.ResetAxisState(guid);
             RebuildMappingUI();
         };
-        Grid.SetColumn(axisCombo, 0);
+        sp.Children.Add(axisCombo);
 
-        var trinSp = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        trinSp.Children.Add(new TextBlock
+        // ── Mode checkboxes ─────────────────────────────────────────
+        var modeRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 6) };
+
+        CheckBox MakeCb(string label, bool isChecked, Action<bool> onChange)
         {
-            Text = "Steps:", Foreground = new SolidColorBrush(Color.FromRgb(150, 150, 150)),
-            FontFamily = new FontFamily("Segoe UI"), FontSize = 12,
-            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0)
-        });
-        var stepsBox = new TextBox
+            var cb = new CheckBox
+            {
+                Content = label, IsChecked = isChecked,
+                Foreground = new SolidColorBrush(Color.FromRgb(200, 200, 200)),
+                FontFamily = new FontFamily("Segoe UI"), FontSize = 12,
+                Margin = new Thickness(0, 0, 12, 0), VerticalContentAlignment = VerticalAlignment.Center
+            };
+            cb.Checked   += (_, _) => { onChange(true);  RebuildMappingUI(); };
+            cb.Unchecked += (_, _) => { onChange(false); RebuildMappingUI(); };
+            return cb;
+        }
+
+        modeRow.Children.Add(MakeCb("Standard",        axMap.UseStandard, v => axMap.UseStandard = v));
+        modeRow.Children.Add(MakeCb("Center",          axMap.UseCenter,   v => axMap.UseCenter   = v));
+        modeRow.Children.Add(MakeCb("Const. Pressure", axMap.UseCp,       v => axMap.UseCp       = v));
+        sp.Children.Add(modeRow);
+
+        // ── Dead zone (Center or CP) ───────────────────────────────
+        if (axMap.UseCenter || axMap.UseCp)
         {
-            Text = axMap.Steps.ToString(), Width = 40, Height = 24,
-            Background = new SolidColorBrush(Color.FromRgb(45, 45, 45)), Foreground = Brushes.White,
-            BorderBrush = new SolidColorBrush(Color.FromRgb(80, 80, 80)), BorderThickness = new Thickness(1),
-            TextAlignment = TextAlignment.Center, FontFamily = new FontFamily("Consolas"), FontSize = 12,
-            VerticalContentAlignment = VerticalAlignment.Center
-        };
-        stepsBox.TextChanged += (_, _) => { if (int.TryParse(stepsBox.Text, out int s) && s >= 1 && s <= 8) axMap.Steps = s; };
-        stepsBox.LostFocus   += (_, _) => { if (int.TryParse(stepsBox.Text, out int s) && s >= 1 && s <= 8) { axMap.Steps = s; RebuildMappingUI(); } };
-        stepsBox.PreviewKeyDown += (_, e) => { if (e.Key == Key.Enter && int.TryParse(stepsBox.Text, out int s) && s >= 1 && s <= 8) { axMap.Steps = s; RebuildMappingUI(); } };
-        trinSp.Children.Add(stepsBox);
-        Grid.SetColumn(trinSp, 1);
+            var dzRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
+            dzRow.Children.Add(new TextBlock
+            {
+                Text = "Dead zone:", Foreground = new SolidColorBrush(Color.FromRgb(150, 150, 150)),
+                FontFamily = new FontFamily("Segoe UI"), FontSize = 12,
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0)
+            });
+            var dzBox = new TextBox
+            {
+                Text = axMap.DeadZonePercent.ToString(), Width = 40, Height = 24,
+                Background = new SolidColorBrush(Color.FromRgb(45, 45, 45)), Foreground = Brushes.White,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(80, 80, 80)), BorderThickness = new Thickness(1),
+                TextAlignment = TextAlignment.Center, FontFamily = new FontFamily("Consolas"), FontSize = 12,
+                VerticalContentAlignment = VerticalAlignment.Center
+            };
+            dzBox.TextChanged    += (_, _) => { if (int.TryParse(dzBox.Text, out int dz) && dz >= 1 && dz <= 49) axMap.DeadZonePercent = dz; };
+            dzBox.LostFocus      += (_, _) => { if (int.TryParse(dzBox.Text, out int dz) && dz >= 1 && dz <= 49) { axMap.DeadZonePercent = dz; RebuildMappingUI(); } };
+            dzBox.PreviewKeyDown += (_, e) => { if (e.Key == Key.Enter && int.TryParse(dzBox.Text, out int dz) && dz >= 1 && dz <= 49) { axMap.DeadZonePercent = dz; RebuildMappingUI(); } };
+            dzRow.Children.Add(dzBox);
+            dzRow.Children.Add(new TextBlock
+            {
+                Text = "%", Foreground = new SolidColorBrush(Color.FromRgb(150, 150, 150)),
+                FontFamily = new FontFamily("Segoe UI"), FontSize = 12,
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 0, 0)
+            });
+            sp.Children.Add(dzRow);
+        }
 
-        row1.Children.Add(axisCombo);
-        row1.Children.Add(trinSp);
-        sp.Children.Add(row1);
+        // ── Standard mode section ──────────────────────────────────
+        if (axMap.UseStandard)
+        {
+            if (axMap.UseCenter)
+            {
+                // Two rows — each with independent Steps + key button
+                UIElement MakeCenterStepRow(string rowLabel, int steps, ushort vk, string keyType, Action<int> onStepsChange)
+                {
+                    var g = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+                    g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(105) });
+                    g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(76) });
+                    g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });
 
-        var (upRow, upBtn)     = MakeRow("Up ▲",   axMap.UpKey,   guid, "axisup",   axisIdx);
-        var (downRow, downBtn) = MakeRow("Down ▼", axMap.DownKey, guid, "axisdown", axisIdx);
-        _mappingButtons[$"{guid}|axisup|{axisIdx}"]   = upBtn;
-        _mappingButtons[$"{guid}|axisdown|{axisIdx}"] = downBtn;
-        sp.Children.Add(upRow);
-        sp.Children.Add(downRow);
+                    var rowLbl = new TextBlock
+                    {
+                        Text = rowLabel, Foreground = new SolidColorBrush(Color.FromRgb(180, 180, 180)),
+                        FontFamily = new FontFamily("Segoe UI"), FontSize = 13, VerticalAlignment = VerticalAlignment.Center
+                    };
+                    Grid.SetColumn(rowLbl, 0);
+                    g.Children.Add(rowLbl);
 
+                    var stepsSp = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+                    stepsSp.Children.Add(new TextBlock
+                    {
+                        Text = "Steps:", Foreground = new SolidColorBrush(Color.FromRgb(150, 150, 150)),
+                        FontFamily = new FontFamily("Segoe UI"), FontSize = 11,
+                        VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0)
+                    });
+                    var sb2 = new TextBox
+                    {
+                        Text = steps.ToString(), Width = 34, Height = 22,
+                        Background = new SolidColorBrush(Color.FromRgb(45, 45, 45)), Foreground = Brushes.White,
+                        BorderBrush = new SolidColorBrush(Color.FromRgb(80, 80, 80)), BorderThickness = new Thickness(1),
+                        TextAlignment = TextAlignment.Center, FontFamily = new FontFamily("Consolas"), FontSize = 11,
+                        VerticalContentAlignment = VerticalAlignment.Center
+                    };
+                    sb2.TextChanged    += (_, _) => { if (int.TryParse(sb2.Text, out int s) && s >= 1 && s <= 99) onStepsChange(s); };
+                    sb2.LostFocus      += (_, _) => { if (int.TryParse(sb2.Text, out int s) && s >= 1 && s <= 99) { onStepsChange(s); RebuildMappingUI(); } };
+                    sb2.PreviewKeyDown += (_, e) => { if (e.Key == Key.Enter && int.TryParse(sb2.Text, out int s) && s >= 1 && s <= 99) { onStepsChange(s); RebuildMappingUI(); } };
+                    stepsSp.Children.Add(sb2);
+                    Grid.SetColumn(stepsSp, 1);
+
+                    var keyBtn = new Button
+                    {
+                        Content = VKeyNames.GetName(vk), Tag = $"{guid}|{keyType}|{axisIdx}",
+                        Foreground = vk == 0 ? ColTextDim : ColTextBright,
+                        Background = vk == 0 ? ColUnassigned : ColAssigned,
+                        BorderBrush = new SolidColorBrush(Color.FromRgb(80, 80, 80)), BorderThickness = new Thickness(1),
+                        FontFamily = new FontFamily("Consolas"), FontSize = 12,
+                        Padding = new Thickness(8, 4, 8, 4), HorizontalAlignment = HorizontalAlignment.Stretch,
+                        Cursor = Cursors.Hand, Style = TryFindRes("KeyButton") as Style
+                    };
+                    keyBtn.Click += KeyButton_Click;
+                    Grid.SetColumn(keyBtn, 2);
+
+                    var clrBtn = new Button
+                    {
+                        Content = "✕", Tag = $"{guid}|{keyType}|{axisIdx}",
+                        Foreground = new SolidColorBrush(Color.FromRgb(150, 150, 150)),
+                        Background = new SolidColorBrush(Color.FromRgb(40, 40, 40)),
+                        BorderBrush = new SolidColorBrush(Color.FromRgb(70, 70, 70)), BorderThickness = new Thickness(1),
+                        FontSize = 12, Width = 32, Height = 28, Margin = new Thickness(6, 0, 0, 0),
+                        HorizontalAlignment = HorizontalAlignment.Left, Cursor = Cursors.Hand
+                    };
+                    clrBtn.Click += ClearButton_Click;
+                    Grid.SetColumn(clrBtn, 3);
+
+                    g.Children.Add(stepsSp); g.Children.Add(keyBtn); g.Children.Add(clrBtn);
+                    _mappingButtons[$"{guid}|{keyType}|{axisIdx}"] = keyBtn;
+                    return g;
+                }
+
+                sp.Children.Add(MakeCenterStepRow("Throttle (Up) ▲",  axMap.StepsUp,   axMap.UpKey,   "axisup",   v => axMap.StepsUp   = v));
+                sp.Children.Add(MakeCenterStepRow("Brake (Down) ▼",   axMap.StepsDown, axMap.DownKey, "axisdown", v => axMap.StepsDown = v));
+            }
+            else
+            {
+                // Standard single-direction: Steps field above Up/Down rows
+                var stepsRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+                stepsRow.Children.Add(new TextBlock
+                {
+                    Text = "Steps:", Foreground = new SolidColorBrush(Color.FromRgb(150, 150, 150)),
+                    FontFamily = new FontFamily("Segoe UI"), FontSize = 12,
+                    VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0)
+                });
+                var stepsBox = new TextBox
+                {
+                    Text = axMap.StepsUp.ToString(), Width = 40, Height = 24,
+                    Background = new SolidColorBrush(Color.FromRgb(45, 45, 45)), Foreground = Brushes.White,
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(80, 80, 80)), BorderThickness = new Thickness(1),
+                    TextAlignment = TextAlignment.Center, FontFamily = new FontFamily("Consolas"), FontSize = 12,
+                    VerticalContentAlignment = VerticalAlignment.Center
+                };
+                stepsBox.TextChanged    += (_, _) => { if (int.TryParse(stepsBox.Text, out int s) && s >= 1 && s <= 99) axMap.StepsUp = s; };
+                stepsBox.LostFocus      += (_, _) => { if (int.TryParse(stepsBox.Text, out int s) && s >= 1 && s <= 99) { axMap.StepsUp = s; RebuildMappingUI(); } };
+                stepsBox.PreviewKeyDown += (_, e) => { if (e.Key == Key.Enter && int.TryParse(stepsBox.Text, out int s) && s >= 1 && s <= 99) { axMap.StepsUp = s; RebuildMappingUI(); } };
+                stepsRow.Children.Add(stepsBox);
+                sp.Children.Add(stepsRow);
+
+                var (upRow, upBtn)     = MakeRow("Up ▲",   axMap.UpKey,   guid, "axisup",   axisIdx);
+                var (downRow, downBtn) = MakeRow("Down ▼", axMap.DownKey, guid, "axisdown", axisIdx);
+                _mappingButtons[$"{guid}|axisup|{axisIdx}"]   = upBtn;
+                _mappingButtons[$"{guid}|axisdown|{axisIdx}"] = downBtn;
+                sp.Children.Add(upRow);
+                sp.Children.Add(downRow);
+            }
+        }
+
+        // ── Constant Pressure section ──────────────────────────────
+        if (axMap.UseCp)
+        {
+            sp.Children.Add(new TextBlock
+            {
+                Text = "── Const. Pressure ──",
+                Foreground = new SolidColorBrush(Color.FromRgb(100, 140, 200)),
+                FontFamily = new FontFamily("Segoe UI"), FontSize = 11,
+                Margin = new Thickness(0, 4, 0, 2)
+            });
+            var (cpUpRow,   cpUpBtn)   = MakeRow("Hold Up ▲",   axMap.CpUpKey,   guid, "cpup",   axisIdx);
+            var (cpDownRow, cpDownBtn) = MakeRow("Hold Down ▼", axMap.CpDownKey, guid, "cpdown", axisIdx);
+            _mappingButtons[$"{guid}|cpup|{axisIdx}"]   = cpUpBtn;
+            _mappingButtons[$"{guid}|cpdown|{axisIdx}"] = cpDownBtn;
+            sp.Children.Add(cpUpRow);
+            sp.Children.Add(cpDownRow);
+        }
+
+        // ── Calibration ────────────────────────────────────────────
         var calRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
 
         var minBtn = new Button
@@ -664,7 +811,7 @@ public partial class MainWindow : Window
 
         var stepDisplay = new TextBlock
         {
-            Text = "Step: —", Foreground = new SolidColorBrush(Color.FromRgb(129, 199, 132)),
+            Text = "—", Foreground = new SolidColorBrush(Color.FromRgb(129, 199, 132)),
             FontFamily = new FontFamily("Consolas"), FontSize = 12, VerticalAlignment = VerticalAlignment.Center
         };
         _axisStepDisplays[$"{guid}|axis|{axisIdx}"] = stepDisplay;
@@ -799,10 +946,12 @@ public partial class MainWindow : Window
     private void SetMapping(string guid, string type, string index, ushort vk)
     {
         var mapping = _currentProfile.GetOrCreate(guid);
-        if      (type == "hat")      mapping.HatMappings[int.Parse(index)]          = vk;
-        else if (type == "btn")      mapping.ButtonMappings[int.Parse(index)]       = vk;
-        else if (type == "axisup")   mapping.AxisMappings[int.Parse(index)].UpKey   = vk;
-        else if (type == "axisdown") mapping.AxisMappings[int.Parse(index)].DownKey = vk;
+        if      (type == "hat")      mapping.HatMappings[int.Parse(index)]            = vk;
+        else if (type == "btn")      mapping.ButtonMappings[int.Parse(index)]         = vk;
+        else if (type == "axisup")   mapping.AxisMappings[int.Parse(index)].UpKey     = vk;
+        else if (type == "axisdown") mapping.AxisMappings[int.Parse(index)].DownKey   = vk;
+        else if (type == "cpup")     mapping.AxisMappings[int.Parse(index)].CpUpKey   = vk;
+        else if (type == "cpdown")   mapping.AxisMappings[int.Parse(index)].CpDownKey = vk;
         _mapper.UpdateProfile(_currentProfile);
         RebuildMappingUI();
     }
@@ -840,6 +989,21 @@ public partial class MainWindow : Window
                 for (int b = 0; b < selectedState.Buttons.Length; b++)
                     if (selectedState.Buttons[b])
                         currentPressed.Add($"{g}|btn|{b}");
+
+                // CP zone detection — adds cpup/cpdown to currentPressed so buttons highlight
+                var cpMap = _currentProfile.GetOrCreate(g);
+                for (int cpi = 0; cpi < cpMap.AxisMappings.Count; cpi++)
+                {
+                    var cpAx = cpMap.AxisMappings[cpi];
+                    if (!cpAx.UseCp) continue;
+                    int cpR = cpAx.CalMax - cpAx.CalMin;
+                    if (cpR <= 0) continue;
+                    int cpRaw  = Math.Clamp(selectedState.GetAxis(cpAx.AxisName), cpAx.CalMin, cpAx.CalMax);
+                    int cpCtr  = (cpAx.CalMin + cpAx.CalMax) / 2;
+                    int cpDead = Math.Max(1, (int)(cpR * cpAx.DeadZonePercent / 100.0 / 2));
+                    if (cpRaw > cpCtr + cpDead) currentPressed.Add($"{g}|cpup|{cpi}");
+                    if (cpRaw < cpCtr - cpDead) currentPressed.Add($"{g}|cpdown|{cpi}");
+                }
             }
 
             // ── Controller dot + status tekst ────────────────────
@@ -887,24 +1051,67 @@ public partial class MainWindow : Window
 
                     if (bar.Segments != null)
                     {
-                        // Segmenteret: beregn curStep ud fra slot-kalibrering
-                        var slot    = mapping.AxisMappings.FirstOrDefault(a => a.AxisName == bar.AxisName);
-                        int curStep = 0;
-                        if (connected && slot != null)
+                        var slot = mapping.AxisMappings.FirstOrDefault(a => a.AxisName == bar.AxisName);
+
+                        if (bar.NeutralSegIdx >= 0 && slot != null)
                         {
-                            int range = slot.CalMax - slot.CalMin;
-                            if (range > 0)
+                            // Center mode bi-directional bar
+                            int curStep = 0;
+                            if (connected)
                             {
-                                int raw = Math.Clamp(selectedState!.GetAxis(bar.AxisName), slot.CalMin, slot.CalMax);
-                                curStep = (int)Math.Round((double)(raw - slot.CalMin) / range * slot.Steps);
-                                curStep = Math.Clamp(curStep, 0, slot.Steps);
+                                int r2 = slot.CalMax - slot.CalMin;
+                                if (r2 > 0)
+                                {
+                                    int raw2 = Math.Clamp(selectedState!.GetAxis(bar.AxisName), slot.CalMin, slot.CalMax);
+                                    int ctr  = (slot.CalMin + slot.CalMax) / 2;
+                                    int dz   = Math.Max(1, (int)(r2 * slot.DeadZonePercent / 100.0 / 2));
+                                    if (raw2 > ctr + dz)
+                                    {
+                                        double tR = slot.CalMax - (ctr + dz);
+                                        curStep = tR > 0 ? (int)Math.Round((raw2 - ctr - dz) / tR * slot.StepsUp) : slot.StepsUp;
+                                        curStep = Math.Clamp(curStep, 1, slot.StepsUp);
+                                    }
+                                    else if (raw2 < ctr - dz)
+                                    {
+                                        double bR = (ctr - dz) - slot.CalMin;
+                                        curStep = bR > 0 ? -(int)Math.Round((ctr - dz - raw2) / bR * slot.StepsDown) : -slot.StepsDown;
+                                        curStep = Math.Clamp(curStep, -slot.StepsDown, -1);
+                                    }
+                                }
+                            }
+                            int nIdx = bar.NeutralSegIdx;
+                            for (int si = 0; si < bar.Segments.Length; si++)
+                            {
+                                Color c;
+                                if (si == nIdx)
+                                    c = Color.FromRgb(70, 70, 90);                                         // neutral — always visible
+                                else if (si > nIdx)
+                                    c = curStep > 0 && si <= nIdx + curStep                                // throttle zone (top)
+                                        ? Color.FromRgb(76, 175, 80) : Color.FromRgb(30, 30, 48);
+                                else
+                                    c = curStep < 0 && si >= nIdx + curStep                                // brake zone (bottom)
+                                        ? Color.FromRgb(255, 82, 82) : Color.FromRgb(30, 30, 48);
+                                bar.Segments[si].Background = new SolidColorBrush(c);
                             }
                         }
-                        for (int i = 0; i < bar.Segments.Length; i++)
-                            bar.Segments[i].Background = new SolidColorBrush(
-                                i < curStep
-                                    ? Color.FromRgb(76, 175, 80)   // grøn = tændt
-                                    : Color.FromRgb(30, 30, 48));  // mørk = slukket
+                        else
+                        {
+                            // Standard segmented bar — fills from bottom
+                            int curStep = 0;
+                            if (connected && slot != null)
+                            {
+                                int r2 = slot.CalMax - slot.CalMin;
+                                if (r2 > 0)
+                                {
+                                    int raw2 = Math.Clamp(selectedState!.GetAxis(bar.AxisName), slot.CalMin, slot.CalMax);
+                                    curStep  = (int)Math.Round((double)(raw2 - slot.CalMin) / r2 * slot.StepsUp);
+                                    curStep  = Math.Clamp(curStep, 0, slot.StepsUp);
+                                }
+                            }
+                            for (int si = 0; si < bar.Segments.Length; si++)
+                                bar.Segments[si].Background = new SolidColorBrush(
+                                    si < curStep ? Color.FromRgb(76, 175, 80) : Color.FromRgb(30, 30, 48));
+                        }
                     }
                     else if (bar.EmptyRow != null && bar.FilledRow != null)
                     {
@@ -919,18 +1126,60 @@ public partial class MainWindow : Window
             }
 
             // ── Axis step display ────────────────────────────────
-            if (connected && !string.IsNullOrEmpty(_selectedGuid))
+            if (!string.IsNullOrEmpty(_selectedGuid))
             {
-                var mapping = _currentProfile.GetOrCreate(_selectedGuid);
-                for (int ai = 0; ai < mapping.AxisMappings.Count; ai++)
+                var dispMapping = _currentProfile.GetOrCreate(_selectedGuid);
+                for (int ai = 0; ai < dispMapping.AxisMappings.Count; ai++)
                 {
                     if (!_axisStepDisplays.TryGetValue($"{_selectedGuid}|axis|{ai}", out var disp)) continue;
-                    var axMap = mapping.AxisMappings[ai];
+                    var axMap = dispMapping.AxisMappings[ai];
                     int range = axMap.CalMax - axMap.CalMin;
-                    if (range <= 0) { disp.Text = "Step: —"; continue; }
-                    int raw  = Math.Clamp(selectedState!.GetAxis(axMap.AxisName), axMap.CalMin, axMap.CalMax);
-                    int step = (int)Math.Round((double)(raw - axMap.CalMin) / range * axMap.Steps);
-                    disp.Text = $"Step: {step}/{axMap.Steps}";
+                    if (range <= 0 || !connected) { disp.Text = "—"; continue; }
+
+                    int raw     = Math.Clamp(selectedState!.GetAxis(axMap.AxisName), axMap.CalMin, axMap.CalMax);
+                    int center  = (axMap.CalMin + axMap.CalMax) / 2;
+                    int deadAbs = Math.Max(1, (int)(range * axMap.DeadZonePercent / 100.0 / 2));
+                    var sb      = new System.Text.StringBuilder();
+
+                    if (axMap.UseStandard)
+                    {
+                        if (axMap.UseCenter)
+                        {
+                            int step;
+                            if (raw >= center - deadAbs && raw <= center + deadAbs)
+                                step = 0;
+                            else if (raw > center + deadAbs)
+                            {
+                                double tR = axMap.CalMax - (center + deadAbs);
+                                step = tR > 0 ? (int)Math.Round((raw - center - deadAbs) / tR * axMap.StepsUp) : axMap.StepsUp;
+                                step = Math.Clamp(step, 1, axMap.StepsUp);
+                            }
+                            else
+                            {
+                                double bR = (center - deadAbs) - axMap.CalMin;
+                                step = bR > 0 ? -(int)Math.Round((center - deadAbs - raw) / bR * axMap.StepsDown) : -axMap.StepsDown;
+                                step = Math.Clamp(step, -axMap.StepsDown, -1);
+                            }
+                            sb.Append(step > 0 ? $"▲{step}/{axMap.StepsUp}" :
+                                      step < 0 ? $"▼{-step}/{axMap.StepsDown}" : "neutral");
+                        }
+                        else
+                        {
+                            int step = (int)Math.Round((double)(raw - axMap.CalMin) / range * axMap.StepsUp);
+                            step = Math.Clamp(step, 0, axMap.StepsUp);
+                            sb.Append($"Step:{step}/{axMap.StepsUp}");
+                        }
+                    }
+
+                    if (axMap.UseCp)
+                    {
+                        bool upZone   = raw > center + deadAbs;
+                        bool downZone = raw < center - deadAbs;
+                        if (sb.Length > 0) sb.Append("  ");
+                        sb.Append(upZone ? "HOLD▲" : downZone ? "HOLD▼" : "CP:—");
+                    }
+
+                    disp.Text = sb.Length > 0 ? sb.ToString() : "—";
                 }
             }
 
@@ -965,6 +1214,8 @@ public partial class MainWindow : Window
             "btn"      => mapping.ButtonMappings.GetValueOrDefault(int.Parse(parts[2])),
             "axisup"   => mapping.AxisMappings[int.Parse(parts[2])].UpKey,
             "axisdown" => mapping.AxisMappings[int.Parse(parts[2])].DownKey,
+            "cpup"     => mapping.AxisMappings[int.Parse(parts[2])].CpUpKey,
+            "cpdown"   => mapping.AxisMappings[int.Parse(parts[2])].CpDownKey,
             _          => 0
         };
     }

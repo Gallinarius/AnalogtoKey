@@ -4,6 +4,13 @@ All notable changes to AnalogtoKey are documented here.
 
 ---
 
+## [0.3.4] — 2026-06-01
+
+### Fixed
+- **CP priority over steps** — when Constant Pressure and Steps Mode are both active, CP now suppresses steps for any direction where a CP key is assigned. If the CP key for a direction is empty, steps fire as normal (fallback). This enables mixed setups, e.g. throttle up = CP hold, brake down = 3 steps.
+
+---
+
 ## [0.3.3] — 2026-06-01
 
 ### Added

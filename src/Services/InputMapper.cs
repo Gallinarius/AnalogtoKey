@@ -179,14 +179,18 @@ namespace AnalogtoKey.Services
                         int diff = curStep - prevSteps[i];
                         prevSteps[i] = curStep;
 
-                        if (diff > 0 && axMap.UpKey != 0)
+                        // CP has priority: suppress steps for a direction if CP key is assigned for it
+                        bool stepUpAllowed   = !axMap.UseCp || axMap.CpUpKey   == 0;
+                        bool stepDownAllowed = !axMap.UseCp || axMap.CpDownKey == 0;
+
+                        if (diff > 0 && axMap.UpKey != 0 && stepUpAllowed)
                             for (int n = 0; n < diff; n++)
                             {
                                 KeySender.KeyDown(axMap.UpKey);
                                 KeySender.KeyUp(axMap.UpKey);
                                 axisStepSent?.Invoke(state.DeviceGuid, $"{axMap.Label} ▲", axMap.UpKey);
                             }
-                        else if (diff < 0 && axMap.DownKey != 0)
+                        else if (diff < 0 && axMap.DownKey != 0 && stepDownAllowed)
                             for (int n = 0; n < -diff; n++)
                             {
                                 KeySender.KeyDown(axMap.DownKey);

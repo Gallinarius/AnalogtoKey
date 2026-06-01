@@ -103,12 +103,6 @@ AnalogtoKey works with any controller that exposes itself as a standard **Direct
 
 ---
 
-## Hardware tested
-
-- HORI Fighting Stick Mini (×2, simultaneous)
-
----
-
 ## Tech stack
 
 | Component | Technology |

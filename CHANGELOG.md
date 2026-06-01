@@ -4,6 +4,16 @@ All notable changes to AnalogtoKey are documented here.
 
 ---
 
+## [0.3.5] — unreleased
+
+### Fixed
+- **ComboBox keyboard block** — controller keystrokes (e.g. arrow keys) no longer affect Profile or Controller dropdowns when they have focus
+
+### Added
+- **Open Debug Window** in ≡ app menu (below Read Documentation) — debug window is always-on-top and floats over borderless windowed games
+
+---
+
 ## [0.3.4] — 2026-06-01
 
 ### Fixed

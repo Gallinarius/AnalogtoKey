@@ -151,6 +151,9 @@ public partial class MainWindow : Window
         var docItem = new MenuItem { Header = "📖   Read Documentation" };
         docItem.Click += OpenManual_Click;
 
+        var debugItem = new MenuItem { Header = "🔍   Open Debug Window" };
+        debugItem.Click += OpenDebug_Click;
+
         var exitItem = new MenuItem { Header = "Exit" };
         exitItem.Click += Exit_Click;
 
@@ -160,6 +163,7 @@ public partial class MainWindow : Window
         appMenu.Items.Add(_minimizeToTrayItem);
         appMenu.Items.Add(new Separator());
         appMenu.Items.Add(docItem);
+        appMenu.Items.Add(debugItem);
         appMenu.Items.Add(new Separator());
         appMenu.Items.Add(exitItem);
         AppMenuBtn.ContextMenu = appMenu;
@@ -1052,6 +1056,13 @@ public partial class MainWindow : Window
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
+        // Prevent controller keystrokes from navigating ComboBoxes
+        if (Keyboard.FocusedElement is ComboBox)
+        {
+            e.Handled = true;
+            return;
+        }
+
         if (!_capturing) return;
         e.Handled = true;
         if (e.Key == Key.Escape) { CancelCapture(); return; }

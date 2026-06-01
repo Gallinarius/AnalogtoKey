@@ -39,6 +39,15 @@ namespace AnalogtoKey.Services
             DisposeJoysticks();
         }
 
+        public void Rescan()
+        {
+            _cts?.Cancel();
+            _pollTask?.Wait(500);
+            InitializeDevices();
+            _cts = new CancellationTokenSource();
+            _pollTask = Task.Run(() => PollLoop(_cts.Token));
+        }
+
         private void InitializeDevices()
         {
             DisposeJoysticks();

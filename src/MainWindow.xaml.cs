@@ -58,6 +58,9 @@ public partial class MainWindow : Window
 
     private TaskbarIcon _trayIcon = null!;
     private bool        _forceClose;
+    private bool        _minimizeToTray;
+    private MenuItem    _minimizeToTrayItem = null!;
+    private bool        _isDirty;
 
     private static readonly SolidColorBrush ColAssigned   = new(Color.FromRgb(21, 101, 192));
     private static readonly SolidColorBrush ColUnassigned = new(Color.FromRgb(35, 35, 35));
@@ -102,6 +105,8 @@ public partial class MainWindow : Window
             _lastActivityText = $"{deviceName} | {label}{keyPart}";
         };
 
+        _minimizeToTray = _profileManager.LoadMinimizeToTray();
+
         _inputService.StateUpdated += OnStateUpdated;
         _hidHide.WhitelistSelf();
         _inputService.Start();
@@ -112,6 +117,89 @@ public partial class MainWindow : Window
         RefreshProfileList(selectLast: true);
 
         InitTray();
+        InitMenus();
+    }
+
+    private void InitMenus()
+    {
+        // ── Edit Profile menu ─────────────────────────────────────
+        var newItem    = new MenuItem { Header = "New profile" };    newItem.Click    += NewProfile_Click;
+        var copyItem   = new MenuItem { Header = "Copy profile" };   copyItem.Click   += CopyProfile_Click;
+        var renameItem = new MenuItem { Header = "Rename profile" }; renameItem.Click += RenameProfile_Click;
+        var deleteItem = new MenuItem { Header = "Delete profile" }; deleteItem.Click += DeleteProfile_Click;
+
+        var editMenu = new ContextMenu();
+        editMenu.Items.Add(newItem);
+        editMenu.Items.Add(copyItem);
+        editMenu.Items.Add(renameItem);
+        editMenu.Items.Add(new Separator());
+        editMenu.Items.Add(deleteItem);
+        EditProfileBtn.ContextMenu = editMenu;
+
+        // ── App menu ──────────────────────────────────────────────
+        var scanItem = new MenuItem { Header = "⟳   Scan for new devices" };
+        scanItem.Click += RescanDevices_Click;
+
+        _minimizeToTrayItem = new MenuItem
+        {
+            Header      = "Minimize to tray on close",
+            IsCheckable = true,
+            IsChecked   = _minimizeToTray
+        };
+        _minimizeToTrayItem.Click += ToggleMinimizeTray_Click;
+
+        var docItem = new MenuItem { Header = "📖   Read Documentation" };
+        docItem.Click += OpenManual_Click;
+
+        var exitItem = new MenuItem { Header = "Exit" };
+        exitItem.Click += Exit_Click;
+
+        var appMenu = new ContextMenu();
+        appMenu.Items.Add(scanItem);
+        appMenu.Items.Add(new Separator());
+        appMenu.Items.Add(_minimizeToTrayItem);
+        appMenu.Items.Add(new Separator());
+        appMenu.Items.Add(docItem);
+        appMenu.Items.Add(new Separator());
+        appMenu.Items.Add(exitItem);
+        AppMenuBtn.ContextMenu = appMenu;
+    }
+
+    private void EditProfileBtn_Click(object sender, RoutedEventArgs e)
+    {
+        var btn = (Button)sender;
+        btn.ContextMenu.PlacementTarget = btn;
+        btn.ContextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+        btn.ContextMenu.IsOpen = true;
+    }
+
+    private void AppMenuBtn_Click(object sender, RoutedEventArgs e)
+    {
+        var btn = (Button)sender;
+        btn.ContextMenu.PlacementTarget = btn;
+        btn.ContextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+        btn.ContextMenu.IsOpen = true;
+    }
+
+    private async void RescanDevices_Click(object sender, RoutedEventArgs e)
+    {
+        await Task.Run(() => _inputService.Rescan());
+        _hidHide.HideDevices(_inputService.ConnectedVids);
+        UpdateHidHideStatus();
+        PopulateControllerDropdown();
+        RebuildMappingUI();
+    }
+
+    private void ToggleMinimizeTray_Click(object sender, RoutedEventArgs e)
+    {
+        _minimizeToTray = _minimizeToTrayItem.IsChecked;
+        _profileManager.SaveMinimizeToTray(_minimizeToTray);
+    }
+
+    private void Exit_Click(object sender, RoutedEventArgs e)
+    {
+        _forceClose = true;
+        Close();
     }
 
     private void InitTray()
@@ -223,27 +311,38 @@ public partial class MainWindow : Window
         _currentProfile = _profileManager.Load(name);
         _profileManager.SaveLastProfile(name);
         _mapper.UpdateProfile(_currentProfile);
+        ClearDirty();
         RebuildMappingUI();
     }
 
     private void ProfileCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        => LoadSelectedProfile();
+    {
+        if (!ConfirmDiscard())
+        {
+            ProfileCombo.SelectionChanged -= ProfileCombo_SelectionChanged;
+            ProfileCombo.SelectedItem      = _currentProfile.Name;
+            ProfileCombo.SelectionChanged += ProfileCombo_SelectionChanged;
+            return;
+        }
+        LoadSelectedProfile();
+    }
 
     private void SaveProfile_Click(object sender, RoutedEventArgs e)
     {
         _profileManager.Save(_currentProfile);
         _profileManager.SaveLastProfile(_currentProfile.Name);
+        ClearDirty();
         var btn  = (Button)sender;
-        var orig = btn.Content;
         btn.Content    = "✓ Saved!";
         btn.Background = new SolidColorBrush(Color.FromRgb(46, 125, 50));
         var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(1.5) };
-        timer.Tick += (_, _) => { btn.Content = orig; btn.Background = ColAssigned; timer.Stop(); };
+        timer.Tick += (_, _) => { ClearDirty(); btn.Background = ColAssigned; timer.Stop(); };
         timer.Start();
     }
 
     private void NewProfile_Click(object sender, RoutedEventArgs e)
     {
+        if (!ConfirmDiscard()) return;
         var dlg = new InputDialog("New profile", "Enter name:", "MyProfile") { Owner = this };
         if (dlg.ShowDialog() != true || string.IsNullOrWhiteSpace(dlg.Result)) return;
         var profile = new MappingProfile { Name = dlg.Result.Trim() };
@@ -255,6 +354,7 @@ public partial class MainWindow : Window
 
     private void CopyProfile_Click(object sender, RoutedEventArgs e)
     {
+        if (!ConfirmDiscard()) return;
         var dlg = new InputDialog("Copy profile", "Name for copy:", $"{_currentProfile.Name} — Copy")
             { Owner = this };
         if (dlg.ShowDialog() != true || string.IsNullOrWhiteSpace(dlg.Result)) return;
@@ -269,6 +369,7 @@ public partial class MainWindow : Window
 
     private void RenameProfile_Click(object sender, RoutedEventArgs e)
     {
+        if (!ConfirmDiscard()) return;
         var oldName = _currentProfile.Name;
         var dlg = new InputDialog("Rename profile", "New name:", oldName) { Owner = this };
         if (dlg.ShowDialog() != true || string.IsNullOrWhiteSpace(dlg.Result)) return;
@@ -289,6 +390,7 @@ public partial class MainWindow : Window
     {
         if (ProfileCombo.SelectedItem is not string name) return;
         if (name == "Default") { MessageBox.Show("The Default profile cannot be deleted."); return; }
+        if (!ConfirmDiscard()) return;
         if (MessageBox.Show($"Delete profile '{name}'?", "Confirm deletion",
             MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
         _profileManager.Delete(name);
@@ -521,6 +623,7 @@ public partial class MainWindow : Window
             while (used.Contains(n)) n++;
             mapping.AxisMappings.Add(new AxisStepMapping { Label = $"Axis {n}" });
             _selectedAxisIndex = mapping.AxisMappings.Count - 1;
+            MarkDirty();
             RebuildMappingUI();
         };
 
@@ -537,6 +640,7 @@ public partial class MainWindow : Window
             if (mapping.AxisMappings.Count <= 1) return;
             mapping.AxisMappings.RemoveAt(_selectedAxisIndex);
             _selectedAxisIndex = Math.Clamp(_selectedAxisIndex, 0, mapping.AxisMappings.Count - 1);
+            MarkDirty();
             RebuildMappingUI();
         };
 
@@ -581,7 +685,7 @@ public partial class MainWindow : Window
             VerticalContentAlignment = VerticalAlignment.Center
         };
         nameBox.TextChanged += (_, _) => axMap.Label = nameBox.Text;
-        nameBox.LostFocus   += (_, _) => RebuildMappingUI();
+        nameBox.LostFocus   += (_, _) => { MarkDirty(); RebuildMappingUI(); };
         Grid.SetColumn(nameBox, 1);
         nameGrid.Children.Add(nameLbl);
         nameGrid.Children.Add(nameBox);
@@ -598,6 +702,7 @@ public partial class MainWindow : Window
             if (newName == axMap.AxisName) return;
             axMap.AxisName = newName;
             _mapper.ResetAxisState(guid);
+            MarkDirty();
             RebuildMappingUI();
         };
         sp.Children.Add(axisCombo);
@@ -627,8 +732,8 @@ public partial class MainWindow : Window
                 VerticalContentAlignment = VerticalAlignment.Center
             };
             box.TextChanged    += (_, _) => { if (int.TryParse(box.Text, out int v) && v >= min && v <= max) setV(v); };
-            box.LostFocus      += (_, _) => { if (int.TryParse(box.Text, out int v) && v >= min && v <= max) { setV(v); RebuildMappingUI(); } else box.Text = getV().ToString(); };
-            box.PreviewKeyDown += (_, e) => { if (e.Key == Key.Enter && int.TryParse(box.Text, out int v) && v >= min && v <= max) { setV(v); RebuildMappingUI(); } };
+            box.LostFocus      += (_, _) => { if (int.TryParse(box.Text, out int v) && v >= min && v <= max) { setV(v); MarkDirty(); RebuildMappingUI(); } else box.Text = getV().ToString(); };
+            box.PreviewKeyDown += (_, e) => { if (e.Key == Key.Enter && int.TryParse(box.Text, out int v) && v >= min && v <= max) { setV(v); MarkDirty(); RebuildMappingUI(); } };
             Grid.SetColumn(box, 0);
 
             var sep = new Border { Background = new SolidColorBrush(Color.FromRgb(80, 80, 80)) };
@@ -637,8 +742,8 @@ public partial class MainWindow : Window
             var btnSp = new StackPanel { Orientation = Orientation.Vertical };
             var btnUp = new System.Windows.Controls.Primitives.RepeatButton { Content = "▲", Height = 12, Delay = 400, Interval = 80, FontSize = 7, Padding = new Thickness(0), Background = Brushes.Transparent, Foreground = new SolidColorBrush(Color.FromRgb(190, 190, 190)), BorderThickness = new Thickness(0, 0, 0, 1), BorderBrush = new SolidColorBrush(Color.FromRgb(80, 80, 80)) };
             var btnDn = new System.Windows.Controls.Primitives.RepeatButton { Content = "▼", Height = 12, Delay = 400, Interval = 80, FontSize = 7, Padding = new Thickness(0), Background = Brushes.Transparent, Foreground = new SolidColorBrush(Color.FromRgb(190, 190, 190)), BorderThickness = new Thickness(0) };
-            btnUp.Click += (_, _) => { int v = Math.Clamp(getV() + 1, min, max); setV(v); box.Text = v.ToString(); RebuildMappingUI(); };
-            btnDn.Click += (_, _) => { int v = Math.Clamp(getV() - 1, min, max); setV(v); box.Text = v.ToString(); RebuildMappingUI(); };
+            btnUp.Click += (_, _) => { int v = Math.Clamp(getV() + 1, min, max); setV(v); box.Text = v.ToString(); MarkDirty(); RebuildMappingUI(); };
+            btnDn.Click += (_, _) => { int v = Math.Clamp(getV() - 1, min, max); setV(v); box.Text = v.ToString(); MarkDirty(); RebuildMappingUI(); };
             btnSp.Children.Add(btnUp); btnSp.Children.Add(btnDn);
             Grid.SetColumn(btnSp, 2);
 
@@ -656,8 +761,8 @@ public partial class MainWindow : Window
                 FontFamily = new FontFamily("Segoe UI"), FontSize = 12,
                 Margin = new Thickness(0, 0, 12, 0), VerticalContentAlignment = VerticalAlignment.Center
             };
-            cb.Checked   += (_, _) => { onChange(true);  RebuildMappingUI(); };
-            cb.Unchecked += (_, _) => { onChange(false); RebuildMappingUI(); };
+            cb.Checked   += (_, _) => { onChange(true);  MarkDirty(); RebuildMappingUI(); };
+            cb.Unchecked += (_, _) => { onChange(false); MarkDirty(); RebuildMappingUI(); };
             return cb;
         }
 
@@ -806,7 +911,7 @@ public partial class MainWindow : Window
         minBtn.Click += (_, _) =>
         {
             var state = _lastStates.FirstOrDefault(s => s.DeviceGuid == guid);
-            if (state != null) axMap.CalMin = state.GetAxis(axMap.AxisName);
+            if (state != null) { axMap.CalMin = state.GetAxis(axMap.AxisName); MarkDirty(); }
         };
 
         var maxBtn = new Button
@@ -818,7 +923,7 @@ public partial class MainWindow : Window
         maxBtn.Click += (_, _) =>
         {
             var state = _lastStates.FirstOrDefault(s => s.DeviceGuid == guid);
-            if (state != null) axMap.CalMax = state.GetAxis(axMap.AxisName);
+            if (state != null) { axMap.CalMax = state.GetAxis(axMap.AxisName); MarkDirty(); }
         };
 
         var stepDisplay = new TextBlock
@@ -965,6 +1070,7 @@ public partial class MainWindow : Window
         else if (type == "cpup")     mapping.AxisMappings[int.Parse(index)].CpUpKey   = vk;
         else if (type == "cpdown")   mapping.AxisMappings[int.Parse(index)].CpDownKey = vk;
         _mapper.UpdateProfile(_currentProfile);
+        MarkDirty();
         RebuildMappingUI();
     }
 
@@ -972,6 +1078,29 @@ public partial class MainWindow : Window
     {
         _capturing = false; CaptureHint.Text = ""; _captureButton = null;
         RebuildMappingUI();
+    }
+
+    private void MarkDirty()
+    {
+        if (_isDirty) return;
+        _isDirty = true;
+        SaveProfileBtn.Content = "💾 Save profile  ●";
+    }
+
+    private void ClearDirty()
+    {
+        _isDirty = false;
+        SaveProfileBtn.Content = "💾 Save profile";
+    }
+
+    private bool ConfirmDiscard()
+    {
+        if (!_isDirty) return true;
+        return MessageBox.Show(
+            "You have unsaved changes that will be lost.\nContinue anyway?",
+            "Unsaved changes",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning) == MessageBoxResult.Yes;
     }
 
     // ─── OnStateUpdated ──────────────────────────────────────────
@@ -1148,7 +1277,8 @@ public partial class MainWindow : Window
                     int range = axMap.CalMax - axMap.CalMin;
                     if (range <= 0 || !connected) { disp.Text = "—"; continue; }
 
-                    int raw     = Math.Clamp(selectedState!.GetAxis(axMap.AxisName), axMap.CalMin, axMap.CalMax);
+                    int rawFull = selectedState!.GetAxis(axMap.AxisName);
+                    int raw     = Math.Clamp(rawFull, axMap.CalMin, axMap.CalMax);
                     int center  = (axMap.CalMin + axMap.CalMax) / 2;
                     int deadAbs = Math.Max(1, (int)(range * axMap.DeadZonePercent / 100.0 / 2));
                     var sb      = new System.Text.StringBuilder();
@@ -1191,7 +1321,9 @@ public partial class MainWindow : Window
                         sb.Append(upZone ? "HOLD▲" : downZone ? "HOLD▼" : "CP:—");
                     }
 
-                    disp.Text = sb.Length > 0 ? sb.ToString() : "—";
+                    if (sb.Length > 0) sb.Append("   ");
+                    sb.Append($"raw:{rawFull}");
+                    disp.Text = sb.ToString();
                 }
             }
 
@@ -1326,7 +1458,7 @@ public partial class MainWindow : Window
 
     private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
     {
-        if (!_forceClose)
+        if (!_forceClose && _minimizeToTray)
         {
             e.Cancel = true;
             Hide();

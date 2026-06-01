@@ -125,30 +125,19 @@
                     <ComboBox x:Name="ProfileCombo" Width="180" Height="28"
                               Style="{StaticResource DarkCombo}"
                               SelectionChanged="ProfileCombo_SelectionChanged"/>
-                    <Button Content="+ New" Margin="6,0,0,0" Height="28" Padding="10,0"
-                            Style="{StaticResource KeyButton}" Click="NewProfile_Click"/>
-                    <Button Content="Delete" Margin="4,0,0,0" Height="28" Padding="10,0"
-                            Style="{StaticResource KeyButton}" Click="DeleteProfile_Click"/>
-                    <Button Content="Copy" Margin="4,0,0,0" Height="28" Padding="10,0"
-                            Style="{StaticResource KeyButton}" Click="CopyProfile_Click"/>
-                    <Button Content="Rename" Margin="4,0,0,0" Height="28" Padding="10,0"
-                            Style="{StaticResource KeyButton}" Click="RenameProfile_Click"/>
+                    <Button x:Name="EditProfileBtn" Content="Edit ▾" Margin="6,0,0,0" Height="28" Padding="10,0"
+                            Style="{StaticResource KeyButton}" Click="EditProfileBtn_Click"
+                            ToolTip="New, copy, rename or delete profile"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
-                    <Button Content="🔍 Debug" Height="28" Padding="10,0"
-                            Margin="0,0,6,0" Visibility="Collapsed"
-                            Style="{StaticResource KeyButton}"
-                            Background="#2D2D2D" Click="OpenDebug_Click"
-                            ToolTip="Monitor all key events system-wide"/>
-                    <Button Content="📖 Manual" Height="28" Padding="12,0"
-                            Margin="0,0,6,0"
-                            Style="{StaticResource KeyButton}"
-                            Background="#2D2D2D" Click="OpenManual_Click"
-                            ToolTip="Open user guide (PDF)"/>
-                    <Button Content="💾 Save profile" Height="28" Padding="12,0"
+                    <Button x:Name="SaveProfileBtn" Content="💾 Save profile" Height="28" Padding="12,0" Margin="0,0,6,0"
                             Style="{StaticResource KeyButton}"
                             Background="#1565C0" Click="SaveProfile_Click"/>
+                    <Button x:Name="AppMenuBtn" Content="≡" Height="28" Width="36"
+                            Style="{StaticResource KeyButton}"
+                            Background="#2D2D2D" Click="AppMenuBtn_Click"
+                            ToolTip="Application menu"/>
                 </StackPanel>
             </Grid>
         </Border>

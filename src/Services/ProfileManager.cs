@@ -20,11 +20,12 @@ namespace AnalogtoKey.Services
 
         private class AppSettings
         {
-            public string  LastProfile  { get; set; } = "Default";
-            public double? WindowLeft   { get; set; }
-            public double? WindowTop    { get; set; }
-            public double? WindowWidth  { get; set; }
-            public double? WindowHeight { get; set; }
+            public string  LastProfile      { get; set; } = "Default";
+            public double? WindowLeft       { get; set; }
+            public double? WindowTop        { get; set; }
+            public double? WindowWidth      { get; set; }
+            public double? WindowHeight     { get; set; }
+            public bool    MinimizeToTray   { get; set; } = true;
         }
 
         private AppSettings LoadSettings()
@@ -66,6 +67,15 @@ namespace AnalogtoKey.Services
             s.WindowTop    = top;
             s.WindowWidth  = width;
             s.WindowHeight = height;
+            SaveSettings(s);
+        }
+
+        public bool LoadMinimizeToTray() => LoadSettings().MinimizeToTray;
+
+        public void SaveMinimizeToTray(bool value)
+        {
+            var s = LoadSettings();
+            s.MinimizeToTray = value;
             SaveSettings(s);
         }
 

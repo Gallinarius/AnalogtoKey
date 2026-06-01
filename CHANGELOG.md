@@ -4,6 +4,19 @@ All notable changes to AnalogtoKey are documented here.
 
 ---
 
+## [0.3.3] — 2026-06-01
+
+### Added
+- **Toolbar redesigned** — 6 individual buttons replaced with two dropdown menus:
+  - **Edit ▾** (next to profile selector): New profile / Copy profile / Rename profile / Delete profile
+  - **≡** (top-right): Scan for new devices / Minimize to tray on close / Read Documentation / Exit
+- **Scan for new devices** — re-detects all connected controllers without restarting the app; useful when a throttle quadrant or stick is unplugged and replugged
+- **Minimize to tray on close** — configurable toggle in the ≡ menu, persisted in settings.json; enabled by default (existing behaviour). When disabled, the X button closes the app directly
+- **Unsaved changes warning** — Save button shows `●` when the current profile has unsaved edits; switching profiles, creating, copying, renaming or deleting a profile prompts before discarding unsaved changes
+- **Live raw axis value** — the axis editor now shows the raw axis reading alongside step info (e.g. `Step:2/5   raw:30942`), making it easier to locate the centre point and set dead zones
+
+---
+
 ## [0.3.1] — 2026-06-01
 
 ### Fixed

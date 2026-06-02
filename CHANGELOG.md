@@ -7,6 +7,14 @@ All notable changes to AnalogtoKey are documented here.
 ## [0.4] — unreleased
 
 ### Added
+- **Axis visual feedback** — axis key buttons now blink green on every step boundary crossed (Steps mode) or stay solid green while held in zone (CP mode). Mirrors InputMapper logic exactly — blinks even when muted.
+- **Axis bars in main window** — axis visualisation bars moved permanently to bottom-right panel below buttons, fixed 180px height, scales with window width via Viewbox.
+- **Floating Axis Monitor window** — detachable axis monitor (≡ menu → Detach Axis Monitor). Always-on-top, custom dark titlebar, draggable, remembers last position and size. When open, bars disappear from main window and show in the monitor instead.
+- **Version label** — build version shown in bottom-right corner of app window, reads directly from assembly.
+- **User guide as Markdown** — `AnalogtoKey_UserGuide.md` added to repo for easy text editing.
+
+### Fixed
+- **Axis blink only fired once** — blink logic now correctly triggers on every step change in both directions, including when moving upward from below center.
 - **Transmit ON/OFF toggle** — `● LIVE` / `● MUTED` button in toolbar. When muted, no keys are sent to the OS; keys that *would* have fired still appear in the Debug Window in red (`[M]`). Toggle is instant and releases all held keys on mute.
 - **Device capability scan** — on connect, AnalogtoKey queries DirectInput for which axes are physically present (X/Y/Z/Rx/Ry/Rz/Slider0/Slider1) and exact button count. UI shows only what the device actually has — no empty rows.
 - **Slider axes (Slider0 / Slider1)** — polled and displayed alongside standard axes. Verified working with Turtle Beach VelocityOne Yoke and Throttle Quadrant.

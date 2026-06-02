@@ -1,0 +1,76 @@
+<Window x:Class="AnalogtoKey.AxisMonitorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="Axis Monitor"
+        Width="200" Height="130"
+        Background="#1A1A2E"
+        WindowStyle="None"
+        AllowsTransparency="False"
+        Topmost="True"
+        ResizeMode="CanResize"
+        MinWidth="80" MinHeight="60">
+
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="0" ResizeBorderThickness="5"
+                            GlassFrameThickness="0" CornerRadius="0"/>
+    </shell:WindowChrome.WindowChrome>
+
+    <Border BorderBrush="#2A2A4A" BorderThickness="1">
+        <DockPanel>
+
+            <!-- Slim title bar -->
+            <Grid DockPanel.Dock="Top" Background="#12122A" Height="20"
+                  MouseLeftButtonDown="TitleBar_MouseDown" Cursor="SizeAll">
+                <shell:WindowChrome.IsHitTestVisibleInChrome>True</shell:WindowChrome.IsHitTestVisibleInChrome>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Axis Monitor" Foreground="#445566"
+                           FontFamily="Segoe UI" FontSize="9"
+                           VerticalAlignment="Center" Margin="7,0,0,0"
+                           Grid.Column="0"/>
+                <Button x:Name="CloseBtn" Content="✕"
+                        Grid.Column="1" Width="20" Height="20"
+                        Background="Transparent" BorderThickness="0"
+                        Foreground="#445566" FontSize="9"
+                        Cursor="Hand" Click="CloseBtn_Click"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="bg" Background="Transparent">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="bg" Property="Background" Value="#882222"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </Grid>
+
+            <!-- Controller name -->
+            <TextBlock x:Name="ControllerLabel" DockPanel.Dock="Top"
+                       Text="—" Foreground="#445566"
+                       FontFamily="Segoe UI" FontSize="9"
+                       HorizontalAlignment="Center"
+                       Margin="0,4,0,2"/>
+
+            <!-- Bars scaled to fill remaining space -->
+            <Viewbox Stretch="Uniform" Margin="6,4,6,6"
+                     HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel x:Name="BarsHost" Orientation="Horizontal"/>
+            </Viewbox>
+
+        </DockPanel>
+    </Border>
+</Window>

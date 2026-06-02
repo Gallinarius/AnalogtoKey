@@ -26,6 +26,10 @@ namespace AnalogtoKey.Services
             public double? WindowWidth      { get; set; }
             public double? WindowHeight     { get; set; }
             public bool    MinimizeToTray   { get; set; } = true;
+            public double? MonitorLeft      { get; set; }
+            public double? MonitorTop       { get; set; }
+            public double? MonitorWidth     { get; set; }
+            public double? MonitorHeight    { get; set; }
         }
 
         private AppSettings LoadSettings()
@@ -67,6 +71,25 @@ namespace AnalogtoKey.Services
             s.WindowTop    = top;
             s.WindowWidth  = width;
             s.WindowHeight = height;
+            SaveSettings(s);
+        }
+
+        public (double Left, double Top, double Width, double Height)? LoadMonitorState()
+        {
+            var s = LoadSettings();
+            if (s.MonitorLeft == null || s.MonitorTop == null ||
+                s.MonitorWidth == null || s.MonitorHeight == null)
+                return null;
+            return (s.MonitorLeft.Value, s.MonitorTop.Value, s.MonitorWidth.Value, s.MonitorHeight.Value);
+        }
+
+        public void SaveMonitorState(double left, double top, double width, double height)
+        {
+            var s = LoadSettings();
+            s.MonitorLeft   = left;
+            s.MonitorTop    = top;
+            s.MonitorWidth  = width;
+            s.MonitorHeight = height;
             SaveSettings(s);
         }
 

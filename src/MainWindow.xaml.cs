@@ -86,6 +86,10 @@ public partial class MainWindow : Window
     private readonly Dictionary<string, int>      _prevAxisStep = new();
     private readonly Dictionary<string, DateTime> _blinkUntil   = new();
 
+    private AxisMonitorWindow? _axisMonitor;
+    private AxisBar[]          _monitorAxisBars    = Array.Empty<AxisBar>();
+    private UIElement?         _axisSliderContainer;
+
     private record ControllerItem(string Guid, string Name)
     {
         public override string ToString() => Name;
@@ -166,6 +170,9 @@ public partial class MainWindow : Window
         var debugItem = new MenuItem { Header = "🔍   Open Debug Window" };
         debugItem.Click += OpenDebug_Click;
 
+        var axisMonitorItem = new MenuItem { Header = "📊   Detach Axis Monitor" };
+        axisMonitorItem.Click += (_, _) => ToggleAxisMonitor(_selectedGuid ?? "");
+
         var exitItem = new MenuItem { Header = "Exit" };
         exitItem.Click += Exit_Click;
 
@@ -176,6 +183,7 @@ public partial class MainWindow : Window
         appMenu.Items.Add(new Separator());
         appMenu.Items.Add(docItem);
         appMenu.Items.Add(debugItem);
+        appMenu.Items.Add(axisMonitorItem);
         appMenu.Items.Add(new Separator());
         appMenu.Items.Add(exitItem);
         AppMenuBtn.ContextMenu = appMenu;
@@ -507,15 +515,14 @@ public partial class MainWindow : Window
         }
 
         AddSectionHeader(leftPanel, "AKSER");
-        leftPanel.Children.Add(BuildAxisSliders(guid, mapping));       // sliders
-        leftPanel.Children.Add(BuildAxisSelectorRow(guid, mapping));   // dropdown + +/−
+        leftPanel.Children.Add(BuildAxisSelectorRow(guid, mapping));
         if (mapping.AxisMappings.Count > 0)
         {
             int idx = Math.Clamp(_selectedAxisIndex, 0, mapping.AxisMappings.Count - 1);
             BuildAxisRow(leftPanel, guid, idx, mapping.AxisMappings[idx]);
         }
 
-        // ── Højre: KNAPPER ───────────────────────────────────────
+        // ── Højre: KNAPPER (row 0) ────────────────────────────────
         AddSectionHeader(rightPanel, "KNAPPER");
         var caps      = GetDeviceCaps(guid);
         int firstBtn  = _buttonPage * 16;
@@ -532,6 +539,24 @@ public partial class MainWindow : Window
             rightPanel.Children.Add(row);
         }
 
+        // ── AKSER-bars under knapper i højre panel ───────────────
+        AddSectionHeader(rightPanel, "AKSER");
+        var (sliderUi, axisBars) = BuildAxisSliders(guid, mapping);
+        _axisBars = axisBars;
+
+        var barViewbox = new Viewbox
+        {
+            Stretch             = Stretch.Uniform,
+            Height              = 180,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            Margin              = new Thickness(0, 4, 0, 8)
+        };
+        barViewbox.Child      = sliderUi;
+        _axisSliderContainer  = barViewbox;
+        barViewbox.Visibility = (_axisMonitor != null && _axisMonitor.IsLoaded)
+            ? Visibility.Collapsed : Visibility.Visible;
+        rightPanel.Children.Add(barViewbox);
+
         Grid.SetColumn(leftPanel,  0);
         Grid.SetColumn(divider,    1);
         Grid.SetColumn(rightPanel, 2);
@@ -543,7 +568,7 @@ public partial class MainWindow : Window
 
     // ─── Akse-sliders ────────────────────────────────────────────
 
-    private UIElement BuildAxisSliders(string guid, StickMapping mapping)
+    private (UIElement, AxisBar[]) BuildAxisSliders(string guid, StickMapping mapping)
     {
         var container    = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 10) };
         var assignedAxes = mapping.AxisMappings.Select(a => a.AxisName).ToHashSet();
@@ -648,8 +673,7 @@ public partial class MainWindow : Window
             bars.Add(new AxisBar(axisName, outerBorder, emptyRow, filledRow, segments, neutralIdx));
         }
 
-        _axisBars = bars.ToArray();
-        return container;
+        return (container, bars.ToArray());
     }
 
     // ─── Akse-selector (dropdown + +/−) ─────────────────────────
@@ -1280,8 +1304,8 @@ public partial class MainWindow : Window
                         {
                             _prevAxisStep[stepKey] = curStep;
                             var blinkEnd = DateTime.Now.AddMilliseconds(180);
-                            if (curStep > prev && curStep > 0) _blinkUntil[keyUp]   = blinkEnd;
-                            if (curStep < prev && curStep < 0) _blinkUntil[keyDown]  = blinkEnd;
+                            if (curStep > prev) _blinkUntil[keyUp]   = blinkEnd;
+                            if (curStep < prev) _blinkUntil[keyDown] = blinkEnd;
                         }
                     }
                 }
@@ -1317,12 +1341,15 @@ public partial class MainWindow : Window
             }
 
             // ── Akse-sliders ─────────────────────────────────────
-            if (_axisBars.Length > 0 && !string.IsNullOrEmpty(_selectedGuid))
+            if (!string.IsNullOrEmpty(_selectedGuid))
             {
                 var mapping      = _currentProfile.GetOrCreate(_selectedGuid);
                 var assignedAxes = mapping.AxisMappings.Select(a => a.AxisName).ToHashSet();
 
-                foreach (var bar in _axisBars)
+                // Update both main window bars and monitor bars
+                var allBarSets = new[] { _axisBars, _monitorAxisBars };
+                foreach (var barSet in allBarSets)
+                foreach (var bar in barSet)
                 {
                     // Kantfarve: blå = tildelt, grå = ikke tildelt
                     bar.OuterBorder.BorderBrush = new SolidColorBrush(
@@ -1540,6 +1567,60 @@ public partial class MainWindow : Window
             _debugWindow = new DebugKeyWindow();
         _debugWindow.Show();
         _debugWindow.Activate();
+    }
+
+    private void ToggleAxisMonitor(string guid)
+    {
+        if (_axisMonitor != null && _axisMonitor.IsLoaded)
+        {
+            _axisMonitor.Close();
+            _axisMonitor = null;
+            if (_axisSliderContainer != null)
+                _axisSliderContainer.Visibility = Visibility.Visible;
+            return;
+        }
+
+        _axisMonitor = new AxisMonitorWindow();
+        _axisMonitor.Closed += (_, _) =>
+        {
+            _profileManager.SaveMonitorState(_axisMonitor.Left, _axisMonitor.Top, _axisMonitor.Width, _axisMonitor.Height);
+            _axisMonitor     = null;
+            _monitorAxisBars = Array.Empty<AxisBar>();
+            if (_axisSliderContainer != null)
+                _axisSliderContainer.Visibility = Visibility.Visible;
+        };
+
+        // Restore last position/size, or default to right of main window
+        var saved = _profileManager.LoadMonitorState();
+        if (saved != null)
+        {
+            _axisMonitor.Left   = saved.Value.Left;
+            _axisMonitor.Top    = saved.Value.Top;
+            _axisMonitor.Width  = saved.Value.Width;
+            _axisMonitor.Height = saved.Value.Height;
+        }
+        else
+        {
+            _axisMonitor.Left = Left + ActualWidth + 8;
+            _axisMonitor.Top  = Top;
+        }
+        _axisMonitor.Show();
+
+        RebuildMonitorBars(guid);
+    }
+
+    private void RebuildMonitorBars(string guid)
+    {
+        if (_axisMonitor == null || !_axisMonitor.IsLoaded) return;
+        var mapping  = _currentProfile.GetOrCreate(guid);
+        var ctrlName = (ControllerCombo.SelectedItem as ControllerItem)?.Name ?? guid;
+        _axisMonitor.SetControllerName(ctrlName);
+        _axisMonitor.BarsHost.Children.Clear();
+        var (ui, bars) = BuildAxisSliders(guid, mapping);
+        _monitorAxisBars = bars;
+        _axisMonitor.BarsHost.Children.Add(ui);
+        if (_axisSliderContainer != null)
+            _axisSliderContainer.Visibility = Visibility.Collapsed;
     }
 
     private void OpenManual_Click(object sender, RoutedEventArgs e)

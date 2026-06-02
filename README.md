@@ -43,9 +43,9 @@ Unlike TSW-specific tools, AnalogtoKey works at the Windows level — it sends r
 
 ## Features
 
-- Map any **button** (1–16) to any keyboard key
+- Map any **button** (1–32) to any keyboard key — devices with more than 16 buttons get a paged UI (1–16 / 17–32)
 - Map all **8 D-pad directions** independently
-- Map **analog axes** (X/Y/Z/Rx/Ry/Rz) with three modes:
+- Map **analog axes** (X/Y/Z/Rx/Ry/Rz + Slider axes) with three modes:
   - **Steps Mode** — axis sends a keypress per step (up to 99 steps, MIN/MAX calibration)
   - **Center Mode** — splits axis at centre with a configurable dead zone; throttle and brake get independent step counts (e.g. 9 throttle + 9 brake = 19 positions)
   - **Constant Pressure** — holds a key down while the axis is past the dead zone, releases when back to neutral
@@ -87,7 +87,9 @@ AnalogtoKey works with any controller that exposes itself as a standard **Direct
 |---|---|
 | HORI Fighting Stick Mini | ✅ Confirmed working |
 | Simworkshop TSC-X | ✅ Confirmed working |
-| Turtle Beach VelocityOne Flight (throttle quadrant) | 🔄 Expected to work — not yet verified |
+| Turtle Beach VelocityOne Yoke | ✅ Confirmed working — all axes including sliders detected |
+| Turtle Beach VelocityOne Throttle Quadrant | ✅ Confirmed working — all slider axes detected |
+| Honeycomb Alpha/Bravo | 🔄 Expected to work — not yet verified |
 | Most USB joysticks and HOTAS systems | 🔄 Expected to work |
 | RailDriver Desktop Train Cab Controller | ❌ Not compatible — uses proprietary SDK, not DirectInput |
 

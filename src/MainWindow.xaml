@@ -5,6 +5,7 @@
         Icon="app.ico"
         MinHeight="500" MinWidth="900"
         Background="#1E1E1E" Foreground="White"
+        WindowStartupLocation="Manual"
         PreviewKeyDown="Window_PreviewKeyDown"
         Closing="Window_Closing"
         SizeToContent="Manual">
@@ -131,6 +132,11 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <Button x:Name="TransmitBtn" Content="● LIVE" Height="28" Padding="12,0" Margin="0,0,10,0"
+                            Style="{StaticResource KeyButton}"
+                            Background="#2E7D32" Foreground="White"
+                            Click="TransmitToggle_Click"
+                            ToolTip="Toggle key transmission ON/OFF. When OFF, keys appear in the Debug Window in red but are not sent to the system."/>
                     <Button x:Name="SaveProfileBtn" Content="💾 Save profile" Height="28" Padding="12,0" Margin="0,0,6,0"
                             Style="{StaticResource KeyButton}"
                             Background="#1565C0" Click="SaveProfile_Click"/>

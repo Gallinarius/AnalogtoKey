@@ -1,6 +1,8 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Documents;
+using System.Windows.Media;
 
 namespace AnalogtoKey
 {
@@ -27,10 +29,14 @@ namespace AnalogtoKey
         private IntPtr _hook = IntPtr.Zero;
         private bool   _modifiersOnly;
 
+        private static readonly SolidColorBrush ColGreen = new(Color.FromRgb(0, 255, 153));
+        private static readonly SolidColorBrush ColRed   = new(Color.FromRgb(255, 80, 80));
+
         // ── Constructor ───────────────────────────────────────────────────────
         public DebugKeyWindow()
         {
             InitializeComponent();
+            LogBox.Document.PagePadding = new Thickness(0);
             _hookProc = HookCallback;
             InstallHook();
             Closed += (_, _) => RemoveHook();
@@ -63,7 +69,7 @@ namespace AnalogtoKey
                 {
                     var line = $"{DateTime.Now:HH:mm:ss.fff}  {(synthetic ? "[S]" : "[P]")}  " +
                                $"{VkName(info.vkCode),-12} {(isDown ? "DOWN" : "UP")}";
-                    Dispatcher.BeginInvoke(() => { LogBox.AppendText(line + "\n"); LogBox.ScrollToEnd(); });
+                    Dispatcher.BeginInvoke(() => AppendLine(line, ColGreen));
                 }
             }
             return CallNextHookEx(_hook, nCode, wParam, lParam);
@@ -92,8 +98,28 @@ namespace AnalogtoKey
             _ => $"0x{vk:X2}"
         };
 
+        // ── Public API ────────────────────────────────────────────────────────
+        public void AppendMuted(ushort vk)
+        {
+            var line = $"{DateTime.Now:HH:mm:ss.fff}  [M]  {VkName(vk),-12} DOWN";
+            Dispatcher.BeginInvoke(() => AppendLine(line, ColRed));
+        }
+
+        // ── Helpers ───────────────────────────────────────────────────────────
+        private void AppendLine(string text, SolidColorBrush color)
+        {
+            var para = new Paragraph(new Run(text))
+            {
+                Foreground  = color,
+                Margin      = new Thickness(0),
+                LineHeight  = 16
+            };
+            LogBox.Document.Blocks.Add(para);
+            LogBox.ScrollToEnd();
+        }
+
         // ── UI events ─────────────────────────────────────────────────────────
-        private void Clear_Click(object sender, RoutedEventArgs e)  => LogBox.Clear();
+        private void Clear_Click(object sender, RoutedEventArgs e)  => LogBox.Document.Blocks.Clear();
         private void Filter_Changed(object sender, RoutedEventArgs e) => _modifiersOnly = ModifiersOnlyCheckbox.IsChecked == true;
     }
 }

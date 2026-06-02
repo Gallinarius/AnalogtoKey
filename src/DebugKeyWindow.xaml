@@ -23,12 +23,13 @@
                     BorderBrush="#555555" Cursor="Hand"/>
         </StackPanel>
 
-        <TextBox x:Name="LogBox" Grid.Row="1"
-                 Background="#0D0D0D" Foreground="#00FF99"
-                 FontFamily="Consolas" FontSize="12"
-                 IsReadOnly="True"
-                 VerticalScrollBarVisibility="Auto"
-                 HorizontalScrollBarVisibility="Auto"
-                 BorderBrush="#333333" Padding="6"/>
+        <RichTextBox x:Name="LogBox" Grid.Row="1"
+                     Background="#0D0D0D" Foreground="#00FF99"
+                     FontFamily="Consolas" FontSize="12"
+                     IsReadOnly="True"
+                     VerticalScrollBarVisibility="Auto"
+                     HorizontalScrollBarVisibility="Auto"
+                     BorderBrush="#333333" Padding="6"
+                     IsDocumentEnabled="False"/>
     </Grid>
 </Window>

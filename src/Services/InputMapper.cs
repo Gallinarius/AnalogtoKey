@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using AnalogtoKey.Models;
 
 namespace AnalogtoKey.Services
@@ -13,8 +14,26 @@ namespace AnalogtoKey.Services
         private readonly Dictionary<string, (bool up, bool down)[]>   _cpHeld    = new();
 
         public event Action<string, string, ushort>? AxisStepSent;
+        public event Action<ushort>?                 KeyMuted;
+
+        public volatile bool IsTransmitting = true;
 
         public InputMapper(MappingProfile profile) => _profile = profile;
+
+        public void SetTransmitting(bool value)
+        {
+            if (value == IsTransmitting) return;
+            if (!value)
+            {
+                ReleaseAll();
+            }
+            else
+            {
+                foreach (var h in _held.Values) h.Clear();
+                _cpHeld.Clear();
+            }
+            IsTransmitting = value;
+        }
 
         public void UpdateProfile(MappingProfile profile)
         {
@@ -41,7 +60,7 @@ namespace AnalogtoKey.Services
                 int axCount = mapping.AxisMappings.Count;
                 var steps   = GetOrCreatePrevSteps(state.DeviceGuid, axCount);
                 var cpHeld  = GetOrCreateCpHeld(state.DeviceGuid, axCount);
-                ProcessStick(state, mapping, held, steps, cpHeld, AxisStepSent);
+                ProcessStick(state, mapping, held, steps, cpHeld, AxisStepSent, _profile.KeyHoldMs, IsTransmitting, KeyMuted);
             }
         }
 
@@ -88,17 +107,25 @@ namespace AnalogtoKey.Services
         private static void ProcessStick(
             StickState state, StickMapping mapping,
             HashSet<ushort> held, int[] prevSteps, (bool up, bool down)[] cpHeld,
-            Action<string, string, ushort>? axisStepSent)
+            Action<string, string, ushort>? axisStepSent, int holdMs,
+            bool transmitting, Action<ushort>? keyMuted)
         {
             if (!state.IsConnected)
             {
-                ReleaseHeld(held);
-                for (int i = 0; i < Math.Min(cpHeld.Length, mapping.AxisMappings.Count); i++)
+                if (transmitting)
                 {
-                    var ax = mapping.AxisMappings[i];
-                    if (cpHeld[i].up   && ax.CpUpKey   != 0) KeySender.KeyUp(ax.CpUpKey);
-                    if (cpHeld[i].down && ax.CpDownKey != 0) KeySender.KeyUp(ax.CpDownKey);
-                    cpHeld[i] = (false, false);
+                    ReleaseHeld(held);
+                    for (int i = 0; i < Math.Min(cpHeld.Length, mapping.AxisMappings.Count); i++)
+                    {
+                        var ax = mapping.AxisMappings[i];
+                        if (cpHeld[i].up   && ax.CpUpKey   != 0) KeySender.KeyUp(ax.CpUpKey);
+                        if (cpHeld[i].down && ax.CpDownKey != 0) KeySender.KeyUp(ax.CpDownKey);
+                        cpHeld[i] = (false, false);
+                    }
+                }
+                else
+                {
+                    held.Clear();
                 }
                 return;
             }
@@ -118,10 +145,18 @@ namespace AnalogtoKey.Services
                 if (state.Buttons[i] && mapping.ButtonMappings.TryGetValue(i, out var btnKey) && btnKey != 0)
                     desired.Add(btnKey);
 
-            foreach (var key in desired)
-                if (!held.Contains(key)) KeySender.KeyDown(key);
-            foreach (var key in new HashSet<ushort>(held))
-                if (!desired.Contains(key)) KeySender.KeyUp(key);
+            if (transmitting)
+            {
+                foreach (var key in desired)
+                    if (!held.Contains(key)) KeySender.KeyDown(key);
+                foreach (var key in new HashSet<ushort>(held))
+                    if (!desired.Contains(key)) KeySender.KeyUp(key);
+            }
+            else
+            {
+                foreach (var key in desired)
+                    if (!held.Contains(key)) keyMuted?.Invoke(key);
+            }
             held.Clear();
             foreach (var key in desired) held.Add(key);
 
@@ -176,32 +211,96 @@ namespace AnalogtoKey.Services
                     }
                     else
                     {
-                        int diff = curStep - prevSteps[i];
+                        int diff     = curStep - prevSteps[i];
+                        int prevStep = prevSteps[i];
                         prevSteps[i] = curStep;
 
-                        // CP has priority: suppress steps for a direction if CP key is assigned for it
-                        bool stepUpAllowed   = !axMap.UseCp || axMap.CpUpKey   == 0;
-                        bool stepDownAllowed = !axMap.UseCp || axMap.CpDownKey == 0;
+                        if (axMap.UseCenter && axMap.CenterKey != 0 && prevStep != 0 && curStep == 0)
+                        {
+                            ushort key = axMap.CenterKey;
+                            if (transmitting)
+                                _ = Task.Run(async () => { KeySender.KeyDown(key); await Task.Delay(holdMs); KeySender.KeyUp(key); });
+                            else
+                                keyMuted?.Invoke(key);
+                            axisStepSent?.Invoke(state.DeviceGuid, $"{axMap.Label} ○ CENTER", axMap.CenterKey);
+                        }
+
+                        // CP has priority in its own zone only — allow steps when returning from the opposite zone
+                        bool stepUpAllowed   = !axMap.UseCp || axMap.CpUpKey   == 0 || prevStep < 0;
+                        bool stepDownAllowed = !axMap.UseCp || axMap.CpDownKey == 0 || prevStep > 0;
 
                         if (diff > 0 && axMap.UpKey != 0 && stepUpAllowed)
+                        {
+                            ushort key = axMap.UpKey; int count = diff;
+                            if (transmitting)
+                            {
+                                _ = Task.Run(async () => {
+                                    for (int n = 0; n < count; n++)
+                                    {
+                                        KeySender.KeyDown(key);
+                                        await Task.Delay(holdMs);
+                                        KeySender.KeyUp(key);
+                                        if (n < count - 1) await Task.Delay(16);
+                                    }
+                                });
+                            }
+                            else
+                            {
+                                for (int n = 0; n < count; n++) keyMuted?.Invoke(key);
+                            }
                             for (int n = 0; n < diff; n++)
-                            {
-                                KeySender.KeyDown(axMap.UpKey);
-                                KeySender.KeyUp(axMap.UpKey);
                                 axisStepSent?.Invoke(state.DeviceGuid, $"{axMap.Label} ▲", axMap.UpKey);
-                            }
+                        }
                         else if (diff < 0 && axMap.DownKey != 0 && stepDownAllowed)
-                            for (int n = 0; n < -diff; n++)
+                        {
+                            ushort key = axMap.DownKey; int count = -diff;
+                            if (transmitting)
                             {
-                                KeySender.KeyDown(axMap.DownKey);
-                                KeySender.KeyUp(axMap.DownKey);
-                                axisStepSent?.Invoke(state.DeviceGuid, $"{axMap.Label} ▼", axMap.DownKey);
+                                _ = Task.Run(async () => {
+                                    for (int n = 0; n < count; n++)
+                                    {
+                                        KeySender.KeyDown(key);
+                                        await Task.Delay(holdMs);
+                                        KeySender.KeyUp(key);
+                                        if (n < count - 1) await Task.Delay(16);
+                                    }
+                                });
                             }
+                            else
+                            {
+                                for (int n = 0; n < count; n++) keyMuted?.Invoke(key);
+                            }
+                            for (int n = 0; n < -diff; n++)
+                                axisStepSent?.Invoke(state.DeviceGuid, $"{axMap.Label} ▼", axMap.DownKey);
+                        }
+
+                        // ── End-of-travel keypresses ──────────────────────────
+                        int maxStep = axMap.UseCenter ? axMap.StepsUp   :  axMap.StepsUp;
+                        int minStep = axMap.UseCenter ? -axMap.StepsDown : 0;
+
+                        if (axMap.MaxKey != 0 && curStep == maxStep && prevStep < maxStep)
+                        {
+                            ushort key = axMap.MaxKey;
+                            if (transmitting)
+                                _ = Task.Run(async () => { KeySender.KeyDown(key); await Task.Delay(holdMs); KeySender.KeyUp(key); });
+                            else
+                                keyMuted?.Invoke(key);
+                            axisStepSent?.Invoke(state.DeviceGuid, $"{axMap.Label} ▲ MAX", key);
+                        }
+                        else if (axMap.MinKey != 0 && curStep == minStep && prevStep > minStep)
+                        {
+                            ushort key = axMap.MinKey;
+                            if (transmitting)
+                                _ = Task.Run(async () => { KeySender.KeyDown(key); await Task.Delay(holdMs); KeySender.KeyUp(key); });
+                            else
+                                keyMuted?.Invoke(key);
+                            axisStepSent?.Invoke(state.DeviceGuid, $"{axMap.Label} ▼ MIN", key);
+                        }
                     }
                 }
 
                 // ── Constant Pressure mode (held keys) ────────────────────────
-                if (axMap.UseCp)
+                if (axMap.UseCp && transmitting)
                 {
                     bool wantsUp   = raw > center + deadAbs;
                     bool wantsDown = raw < center - deadAbs;

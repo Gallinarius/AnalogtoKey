@@ -25,9 +25,23 @@ public class AxisStepMapping
     public ushort CpUpKey   { get; set; } = 0;
     public ushort CpDownKey { get; set; } = 0;
 
+    // Center Key — pulsed once when axis enters the neutral zone (from either direction)
+    public ushort CenterKey { get; set; } = 0;
+
     // Dead zone % around center axis (1–49) — used by Center and CP modes
     public int DeadZonePercent { get; set; } = 5;
 
+    // End-of-travel keypresses — pulsed once when axis first reaches the extreme step
+    public ushort MaxKey { get; set; } = 0;
+    public ushort MinKey { get; set; } = 0;
+
     public int CalMin { get; set; } = 0;
     public int CalMax { get; set; } = 65535;
+
+    // UI state: whether the Advanced section is expanded in the editor
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool ShowAdvanced { get; set; } = false;
+
+    public bool NeedsAdvanced =>
+        !UseStandard || UseCenter || UseCp || MaxKey != 0 || MinKey != 0;
 }

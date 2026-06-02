@@ -83,6 +83,9 @@ public partial class MainWindow : Window
 
     private int _buttonPage = 0;
 
+    private readonly Dictionary<string, int>      _prevAxisStep = new();
+    private readonly Dictionary<string, DateTime> _blinkUntil   = new();
+
     private record ControllerItem(string Guid, string Name)
     {
         public override string ToString() => Name;
@@ -92,6 +95,9 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         RestoreWindowState();
+
+        var ver = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+        VersionLabel.Text = ver != null ? $"v{ver.Major}.{ver.Minor}.{ver.Build}" : "";
 
         _mapper = new InputMapper(_currentProfile);
 
@@ -1231,18 +1237,51 @@ public partial class MainWindow : Window
                         if (zRaw < zCtr - zDead && axZ.CpDownKey != 0) currentPressed.Add($"{g}|cpdown|{ai}");
                     }
 
-                    // Step keys: highlight based on zone position
+                    // Step keys: blink on each step boundary crossing (mirrors InputMapper logic)
                     if (axZ.UseStandard)
                     {
+                        int curStep;
                         if (axZ.UseCenter)
                         {
-                            if (zRaw > zCtr + zDead) currentPressed.Add($"{g}|axisup|{ai}");
-                            if (zRaw < zCtr - zDead) currentPressed.Add($"{g}|axisdown|{ai}");
+                            if (zRaw >= zCtr - zDead && zRaw <= zCtr + zDead)
+                            {
+                                curStep = 0;
+                            }
+                            else if (zRaw > zCtr + zDead)
+                            {
+                                double tRange = axZ.CalMax - (zCtr + zDead);
+                                curStep = tRange > 0
+                                    ? (int)Math.Round((zRaw - zCtr - zDead) / tRange * axZ.StepsUp)
+                                    : axZ.StepsUp;
+                                curStep = Math.Clamp(curStep, 1, axZ.StepsUp);
+                            }
+                            else
+                            {
+                                double bRange = (zCtr - zDead) - axZ.CalMin;
+                                curStep = bRange > 0
+                                    ? -(int)Math.Round((zCtr - zDead - zRaw) / bRange * axZ.StepsDown)
+                                    : -axZ.StepsDown;
+                                curStep = Math.Clamp(curStep, -axZ.StepsDown, -1);
+                            }
                         }
                         else
                         {
-                            int zStep = (int)Math.Round((double)(zRaw - axZ.CalMin) / zR * axZ.StepsUp);
-                            if (Math.Clamp(zStep, 0, axZ.StepsUp) > 0) currentPressed.Add($"{g}|axisup|{ai}");
+                            curStep = Math.Clamp(
+                                (int)Math.Round((double)(zRaw - axZ.CalMin) / zR * axZ.StepsUp),
+                                0, axZ.StepsUp);
+                        }
+
+                        string stepKey = $"{g}|axis|{ai}";
+                        string keyUp   = $"{g}|axisup|{ai}";
+                        string keyDown = $"{g}|axisdown|{ai}";
+                        int    prev    = _prevAxisStep.GetValueOrDefault(stepKey, int.MinValue);
+
+                        if (curStep != prev)
+                        {
+                            _prevAxisStep[stepKey] = curStep;
+                            var blinkEnd = DateTime.Now.AddMilliseconds(180);
+                            if (curStep > prev && curStep > 0) _blinkUntil[keyUp]   = blinkEnd;
+                            if (curStep < prev && curStep < 0) _blinkUntil[keyDown]  = blinkEnd;
                         }
                     }
                 }
@@ -1429,15 +1468,17 @@ public partial class MainWindow : Window
             }
 
             // ── Live highlight af mapping-knapper ────────────────
+            var now = DateTime.Now;
             foreach (var (key, btn) in _mappingButtons)
             {
                 if (_capturing && btn == _captureButton) continue;
-                bool   pressed = currentPressed.Contains(key);
-                ushort vk      = GetVkForKey(key);
-                if (pressed)
+                bool   pressed  = currentPressed.Contains(key);
+                bool   blinking = _blinkUntil.TryGetValue(key, out var blinkEnd) && now < blinkEnd;
+                ushort vk       = GetVkForKey(key);
+                if (pressed || blinking)
                 {
-                    if (vk == 0 && !_capturing) { btn.Background = ColCapture; btn.Foreground = ColTextBright; }
-                    else if (vk != 0)           { btn.Background = ColPressed; btn.Foreground = ColTextBright; }
+                    if (vk == 0 && !_capturing && pressed) { btn.Background = ColCapture; btn.Foreground = ColTextBright; }
+                    else if (vk != 0)                      { btn.Background = ColPressed; btn.Foreground = ColTextBright; }
                 }
                 else
                 {

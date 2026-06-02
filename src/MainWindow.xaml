@@ -210,6 +210,13 @@
             </StackPanel>
         </Border>
 
+        <!-- Version footer -->
+        <Border DockPanel.Dock="Bottom" Background="#111122" Padding="0,3">
+            <TextBlock x:Name="VersionLabel" Text="v0.0.0"
+                       Foreground="#555577" FontFamily="Consolas" FontSize="13"
+                       HorizontalAlignment="Right" Margin="0,0,10,0"/>
+        </Border>
+
         <!-- Mapping panel -->
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel x:Name="MappingPanel" Margin="16,10"/>

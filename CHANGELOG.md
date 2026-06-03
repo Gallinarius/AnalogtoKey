@@ -4,38 +4,28 @@ All notable changes to AnalogtoKey are documented here.
 
 ---
 
-## [0.4] — unreleased
+## [0.3.41] — 2026-06-03
 
 ### Added
-- **Axis visual feedback** — axis key buttons now blink green on every step boundary crossed (Steps mode) or stay solid green while held in zone (CP mode). Mirrors InputMapper logic exactly — blinks even when muted.
-- **Axis bars in main window** — axis visualisation bars moved permanently to bottom-right panel below buttons, fixed 180px height, scales with window width via Viewbox.
 - **Floating Axis Monitor window** — detachable axis monitor (≡ menu → Detach Axis Monitor). Always-on-top, custom dark titlebar, draggable, remembers last position and size. When open, bars disappear from main window and show in the monitor instead.
-- **Version label** — build version shown in bottom-right corner of app window, reads directly from assembly.
-- **User guide as Markdown** — `AnalogtoKey_UserGuide.md` added to repo for easy text editing.
-
-### Fixed
-- **Axis blink only fired once** — blink logic now correctly triggers on every step change in both directions, including when moving upward from below center.
+- **Axis bars in main window** — axis visualisation bars moved permanently to bottom-right panel below buttons, fixed 180px height, scales with window width via Viewbox.
+- **Axis visual feedback** — axis key buttons now blink green on every step boundary crossed (Steps mode) or stay solid green while held in zone (CP mode). Blinks even when muted.
 - **Transmit ON/OFF toggle** — `● LIVE` / `● MUTED` button in toolbar. When muted, no keys are sent to the OS; keys that *would* have fired still appear in the Debug Window in red (`[M]`). Toggle is instant and releases all held keys on mute.
 - **Device capability scan** — on connect, AnalogtoKey queries DirectInput for which axes are physically present (X/Y/Z/Rx/Ry/Rz/Slider0/Slider1) and exact button count. UI shows only what the device actually has — no empty rows.
 - **Slider axes (Slider0 / Slider1)** — polled and displayed alongside standard axes. Verified working with Turtle Beach VelocityOne Yoke and Throttle Quadrant.
 - **32-button support with paging** — button mapping now covers buttons 1–32. Devices with more than 16 buttons show page tabs (1–16 / 17–32). Only buttons the device actually has are shown.
-- **End-of-travel keypresses (MaxKey / MinKey)** — optional keys that fire once as a pulse when the axis first reaches its maximum or minimum step. Center key (`Center ○`) now lives in the "End of travel" section alongside Max key and Min key. Correct order: Max key ▲ → Center ○ → Min key ▼.
-- **Axis UI cleanup** — mode checkboxes (Steps Mode / Center / Const. Pressure) always visible. Dead zone, CP keys, and End of travel section appear conditionally when relevant.
+- **End-of-travel keypresses (MaxKey / MinKey)** — optional keys that fire once as a pulse when the axis first reaches its maximum or minimum step. Center key (`Center ○`) lives in the "End of travel" section. Order: Max key ▲ → Center ○ → Min key ▼.
+- **Version label** — build version shown in bottom-right corner of app window, reads directly from assembly.
+- **Open Debug Window** in ≡ app menu — debug window is always-on-top and floats over borderless windowed games.
+- **User guide as Markdown** — `AnalogtoKey_UserGuide.md` added to repo for easy text editing.
 
 ### Fixed
+- **ComboBox keyboard block** — controller keystrokes (e.g. arrow keys) no longer affect Profile or Controller dropdowns when they have focus.
+- **Axis blink only fired once** — blink logic now correctly triggers on every step change in both directions, including when moving upward from below center.
 - **Window position not remembered** — added `WindowStartupLocation="Manual"` to XAML; Windows no longer overrides saved Left/Top values.
-- **CP highlight orange when unassigned** — CP zone buttons (Hold Up / Hold Down) now only light green when a key is actually assigned AND the zone is active. Unassigned CP zones are no longer highlighted orange.
+- **CP highlight orange when unassigned** — CP zone buttons (Hold Up / Hold Down) now only light green when a key is actually assigned AND the zone is active.
 - **Axis step keys light green** — Throttle/Brake buttons now highlight green based on current axis zone position, not only on key-sent events.
-
----
-
-## [0.3.5] — unreleased
-
-### Fixed
-- **ComboBox keyboard block** — controller keystrokes (e.g. arrow keys) no longer affect Profile or Controller dropdowns when they have focus
-
-### Added
-- **Open Debug Window** in ≡ app menu (below Read Documentation) — debug window is always-on-top and floats over borderless windowed games
+- **Axis UI cleanup** — mode checkboxes (Steps Mode / Center / Const. Pressure) always visible. Dead zone, CP keys, and End of travel section appear conditionally when relevant.
 
 ---
 

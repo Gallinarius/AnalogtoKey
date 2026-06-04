@@ -2,6 +2,7 @@ using System;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Documents;
+using System.Windows.Interop;
 using System.Windows.Media;
 
 namespace AnalogtoKey
@@ -15,6 +16,12 @@ namespace AnalogtoKey
         [DllImport("user32.dll")] static extern bool   UnhookWindowsHookEx(IntPtr hhk);
         [DllImport("user32.dll")] static extern IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
         [DllImport("kernel32.dll", CharSet = CharSet.Auto)] static extern IntPtr GetModuleHandle(string? lpModuleName);
+        [DllImport("user32.dll")] static extern bool   SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint uFlags);
+
+        private static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
+        private const uint SWP_NOMOVE     = 0x0002;
+        private const uint SWP_NOSIZE     = 0x0001;
+        private const uint SWP_NOACTIVATE = 0x0010;
 
         [StructLayout(LayoutKind.Sequential)]
         private struct KBDLLHOOKSTRUCT { public uint vkCode, scanCode, flags, time; public IntPtr dwExtraInfo; }
@@ -39,7 +46,16 @@ namespace AnalogtoKey
             LogBox.Document.PagePadding = new Thickness(0);
             _hookProc = HookCallback;
             InstallHook();
-            Closed += (_, _) => RemoveHook();
+            Closed      += (_, _) => RemoveHook();
+            Deactivated += (_, _) => ForceTopmost();
+            SourceInitialized += (_, _) => ForceTopmost();
+        }
+
+        private void ForceTopmost()
+        {
+            var hwnd = new WindowInteropHelper(this).Handle;
+            if (hwnd != IntPtr.Zero)
+                SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
         }
 
         // ── Hook install / remove ─────────────────────────────────────────────

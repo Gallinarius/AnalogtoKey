@@ -72,9 +72,10 @@ namespace AnalogtoKey.Services
             _connectedDevices.Clear();
             _capabilities.Clear();
 
+            // DeviceClass.GameControl covers all game input devices: joysticks, gamepads,
+            // flight sim controllers (e.g. Honeycomb Bravo, X-55 Throttle), racing wheels, etc.
             var devices = _directInput
-                .GetDevices(DeviceType.Joystick, DeviceEnumerationFlags.AllDevices)
-                .Concat(_directInput.GetDevices(DeviceType.Gamepad, DeviceEnumerationFlags.AllDevices))
+                .GetDevices(DeviceClass.GameControl, DeviceEnumerationFlags.AllDevices)
                 .ToList();
 
             foreach (var device in devices)

@@ -4,6 +4,14 @@ All notable changes to AnalogtoKey are documented here.
 
 ---
 
+## [0.3.5] — 2026-06-04
+
+### Fixed
+- **Flight controller detection** — devices that register as `DeviceType.Flight` in DirectInput (e.g. Honeycomb Bravo Throttle Quadrant, Saitek/Logitech X-55 Throttle) were not detected by the device scan. The scan now uses `DeviceClass.GameControl` which covers all game input devices — joysticks, gamepads, flight controllers, racing wheels, and more. These devices were visible in Windows `joy.cpl` but missing from AnalogtoKey's device dropdown.
+- **Floating windows always-on-top** — Axis Monitor and Debug Window now call `SetWindowPos(HWND_TOPMOST)` via P/Invoke on `SourceInitialized` and `Deactivated`, ensuring they stay on top of borderless fullscreen games that override WPF's `Topmost` property.
+
+---
+
 ## [0.3.41] — 2026-06-03
 
 ### Added

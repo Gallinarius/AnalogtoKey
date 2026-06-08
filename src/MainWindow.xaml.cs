@@ -955,6 +955,18 @@ public partial class MainWindow : Window
                 sp.Children.Add(upRow);
                 sp.Children.Add(downRow);
             }
+
+            // ── Stacked mode ───────────────────────────────────────
+            var stackedRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
+            stackedRow.Children.Add(MakeCb("Stacked mode", axMap.StackedMode, v => axMap.StackedMode = v));
+            if (axMap.StackedMode)
+            {
+                stackedRow.Children.Add(new TextBlock { Text = "Pause:", Foreground = new SolidColorBrush(Color.FromRgb(150, 150, 150)), FontFamily = new FontFamily("Segoe UI"), FontSize = 12, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 6, 0) });
+                var (pauseCtrl, _) = MakeNumField(axMap.KeyPauseMs, 0, 500, () => axMap.KeyPauseMs, v => axMap.KeyPauseMs = v, w: 44);
+                stackedRow.Children.Add(pauseCtrl);
+                stackedRow.Children.Add(new TextBlock { Text = "ms  (0 = same as hold)", Foreground = new SolidColorBrush(Color.FromRgb(110, 110, 110)), FontFamily = new FontFamily("Segoe UI"), FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 0, 0) });
+            }
+            sp.Children.Add(stackedRow);
         }
 
         // ── CP keys ────────────────────────────────────────────────
@@ -1652,7 +1664,7 @@ public partial class MainWindow : Window
         try
         {
             using var client = new System.Net.Http.HttpClient();
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("AnalogtoKey/0.1");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("AnalogtoKey/0.4");
             var data = await client.GetByteArrayAsync(downloadUrl);
             await System.IO.File.WriteAllBytesAsync(tempPath, data);
 

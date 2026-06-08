@@ -1,7 +1,7 @@
 # AnalogtoKey — User Guide
 
 > Map joystick & arcade stick buttons to keyboard keys
-> Version 0.3.3 — Windows 10 / 11
+> Version 0.4 — Windows 10 / 11
 
 ---
 
@@ -215,4 +215,4 @@ Select the axis in the drop-down and click **− Remove**. The entry is deleted 
 
 ---
 
-*AnalogtoKey v0.3.3 — Profiles: `%AppData%\AnalogtoKey\profiles\`*
+*AnalogtoKey v0.4 — Profiles: `%AppData%\AnalogtoKey\profiles\`*

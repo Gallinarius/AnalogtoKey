@@ -4,6 +4,13 @@ All notable changes to AnalogtoKey are documented here.
 
 ---
 
+## [0.4] — 2026-06-08
+
+### Added
+- **Stacked mode** (Steps Mode) — optional per-axis queue that ensures keypresses are never dropped when the stick moves faster than `KeyHoldMs` allows. Instead of firing concurrent fire-and-forget tasks, keypresses are placed in a FIFO queue and sent sequentially — preventing step desync between stick position and simulator. Configurable inter-keypress pause (`Pause ms`, 0 = same as hold duration). Enabled per axis via the "Stacked mode" checkbox in the axis editor.
+
+---
+
 ## [0.3.5] — 2026-06-04
 
 ### Fixed

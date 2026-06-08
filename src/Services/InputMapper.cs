@@ -5,13 +5,14 @@ using AnalogtoKey.Models;
 
 namespace AnalogtoKey.Services
 {
-    public class InputMapper
+    public class InputMapper : IDisposable
     {
         private MappingProfile _profile;
 
         private readonly Dictionary<string, HashSet<ushort>>          _held      = new();
         private readonly Dictionary<string, int[]>                     _prevSteps = new();
         private readonly Dictionary<string, (bool up, bool down)[]>   _cpHeld    = new();
+        private readonly Dictionary<string, StepQueue?[]>              _queues    = new();
 
         public event Action<string, string, ushort>? AxisStepSent;
         public event Action<ushort>?                 KeyMuted;
@@ -26,6 +27,8 @@ namespace AnalogtoKey.Services
             if (!value)
             {
                 ReleaseAll();
+                foreach (var arr in _queues.Values)
+                    foreach (var q in arr) q?.Clear();
             }
             else
             {
@@ -41,6 +44,7 @@ namespace AnalogtoKey.Services
             ReleaseAll();
             _prevSteps.Clear();
             _cpHeld.Clear();
+            DisposeAllQueues();
             _profile = profile;
         }
 
@@ -60,7 +64,8 @@ namespace AnalogtoKey.Services
                 int axCount = mapping.AxisMappings.Count;
                 var steps   = GetOrCreatePrevSteps(state.DeviceGuid, axCount);
                 var cpHeld  = GetOrCreateCpHeld(state.DeviceGuid, axCount);
-                ProcessStick(state, mapping, held, steps, cpHeld, AxisStepSent, _profile.KeyHoldMs, IsTransmitting, KeyMuted);
+                var queues  = GetOrCreateQueues(state.DeviceGuid, mapping.AxisMappings);
+                ProcessStick(state, mapping, held, steps, cpHeld, AxisStepSent, _profile.KeyHoldMs, IsTransmitting, KeyMuted, queues);
             }
         }
 
@@ -108,7 +113,8 @@ namespace AnalogtoKey.Services
             StickState state, StickMapping mapping,
             HashSet<ushort> held, int[] prevSteps, (bool up, bool down)[] cpHeld,
             Action<string, string, ushort>? axisStepSent, int holdMs,
-            bool transmitting, Action<ushort>? keyMuted)
+            bool transmitting, Action<ushort>? keyMuted,
+            StepQueue?[]? queues = null)
         {
             if (!state.IsConnected)
             {
@@ -234,15 +240,23 @@ namespace AnalogtoKey.Services
                             ushort key = axMap.UpKey; int count = diff;
                             if (transmitting)
                             {
-                                _ = Task.Run(async () => {
-                                    for (int n = 0; n < count; n++)
-                                    {
-                                        KeySender.KeyDown(key);
-                                        await Task.Delay(holdMs);
-                                        KeySender.KeyUp(key);
-                                        if (n < count - 1) await Task.Delay(16);
-                                    }
-                                });
+                                if (queues?[i] is { } q)
+                                {
+                                    int pauseMs = axMap.KeyPauseMs > 0 ? axMap.KeyPauseMs : holdMs;
+                                    for (int n = 0; n < count; n++) q.Enqueue(key, holdMs, pauseMs);
+                                }
+                                else
+                                {
+                                    _ = Task.Run(async () => {
+                                        for (int n = 0; n < count; n++)
+                                        {
+                                            KeySender.KeyDown(key);
+                                            await Task.Delay(holdMs);
+                                            KeySender.KeyUp(key);
+                                            if (n < count - 1) await Task.Delay(16);
+                                        }
+                                    });
+                                }
                             }
                             else
                             {
@@ -256,15 +270,23 @@ namespace AnalogtoKey.Services
                             ushort key = axMap.DownKey; int count = -diff;
                             if (transmitting)
                             {
-                                _ = Task.Run(async () => {
-                                    for (int n = 0; n < count; n++)
-                                    {
-                                        KeySender.KeyDown(key);
-                                        await Task.Delay(holdMs);
-                                        KeySender.KeyUp(key);
-                                        if (n < count - 1) await Task.Delay(16);
-                                    }
-                                });
+                                if (queues?[i] is { } q)
+                                {
+                                    int pauseMs = axMap.KeyPauseMs > 0 ? axMap.KeyPauseMs : holdMs;
+                                    for (int n = 0; n < count; n++) q.Enqueue(key, holdMs, pauseMs);
+                                }
+                                else
+                                {
+                                    _ = Task.Run(async () => {
+                                        for (int n = 0; n < count; n++)
+                                        {
+                                            KeySender.KeyDown(key);
+                                            await Task.Delay(holdMs);
+                                            KeySender.KeyUp(key);
+                                            if (n < count - 1) await Task.Delay(16);
+                                        }
+                                    });
+                                }
                             }
                             else
                             {
@@ -282,7 +304,11 @@ namespace AnalogtoKey.Services
                         {
                             ushort key = axMap.MaxKey;
                             if (transmitting)
-                                _ = Task.Run(async () => { KeySender.KeyDown(key); await Task.Delay(holdMs); KeySender.KeyUp(key); });
+                            {
+                                int pauseMs = axMap.KeyPauseMs > 0 ? axMap.KeyPauseMs : holdMs;
+                                if (queues?[i] is { } q) q.Enqueue(key, holdMs, pauseMs);
+                                else _ = Task.Run(async () => { KeySender.KeyDown(key); await Task.Delay(holdMs); KeySender.KeyUp(key); });
+                            }
                             else
                                 keyMuted?.Invoke(key);
                             axisStepSent?.Invoke(state.DeviceGuid, $"{axMap.Label} ▲ MAX", key);
@@ -291,7 +317,11 @@ namespace AnalogtoKey.Services
                         {
                             ushort key = axMap.MinKey;
                             if (transmitting)
-                                _ = Task.Run(async () => { KeySender.KeyDown(key); await Task.Delay(holdMs); KeySender.KeyUp(key); });
+                            {
+                                int pauseMs = axMap.KeyPauseMs > 0 ? axMap.KeyPauseMs : holdMs;
+                                if (queues?[i] is { } q) q.Enqueue(key, holdMs, pauseMs);
+                                else _ = Task.Run(async () => { KeySender.KeyDown(key); await Task.Delay(holdMs); KeySender.KeyUp(key); });
+                            }
                             else
                                 keyMuted?.Invoke(key);
                             axisStepSent?.Invoke(state.DeviceGuid, $"{axMap.Label} ▼ MIN", key);
@@ -331,6 +361,37 @@ namespace AnalogtoKey.Services
                 }
             }
         }
+
+        private StepQueue?[] GetOrCreateQueues(string guid, List<AxisStepMapping> axMaps)
+        {
+            if (!_queues.TryGetValue(guid, out var queues) || queues.Length != axMaps.Count)
+            {
+                if (queues != null)
+                    foreach (var q in queues) q?.Dispose();
+                queues = new StepQueue?[axMaps.Count];
+                _queues[guid] = queues;
+            }
+            for (int i = 0; i < axMaps.Count; i++)
+            {
+                if (axMaps[i].StackedMode && queues[i] == null)
+                    queues[i] = new StepQueue();
+                else if (!axMaps[i].StackedMode && queues[i] != null)
+                {
+                    queues[i]!.Dispose();
+                    queues[i] = null;
+                }
+            }
+            return queues;
+        }
+
+        private void DisposeAllQueues()
+        {
+            foreach (var arr in _queues.Values)
+                foreach (var q in arr) q?.Dispose();
+            _queues.Clear();
+        }
+
+        public void Dispose() => DisposeAllQueues();
 
         private void ReleaseCpAll()
         {

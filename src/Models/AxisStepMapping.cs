@@ -38,10 +38,14 @@ public class AxisStepMapping
     public int CalMin { get; set; } = 0;
     public int CalMax { get; set; } = 65535;
 
+    // Stacked mode — queue keypresses sequentially instead of fire-and-forget (prevents step desync at high speed)
+    public bool StackedMode { get; set; } = false;
+    public int  KeyPauseMs  { get; set; } = 0;  // pause between queued presses; 0 = same as KeyHoldMs
+
     // UI state: whether the Advanced section is expanded in the editor
     [System.Text.Json.Serialization.JsonIgnore]
     public bool ShowAdvanced { get; set; } = false;
 
     public bool NeedsAdvanced =>
-        !UseStandard || UseCenter || UseCp || MaxKey != 0 || MinKey != 0;
+        !UseStandard || UseCenter || UseCp || MaxKey != 0 || MinKey != 0 || StackedMode;
 }

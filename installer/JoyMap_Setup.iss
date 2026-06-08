@@ -8,7 +8,7 @@
 ;      dotnet publish -c Release -r win-x64 --self-contained true
 
 #define MyAppName      "AnalogtoKey"
-#define MyAppVersion   "0.3.5"
+#define MyAppVersion   "0.4"
 #define MyAppPublisher "AnalogtoKey"
 #define MyAppURL       "https://github.com/YOUR_USERNAME/AnalogtoKey"
 #define MyAppExeName   "AnalogtoKey.exe"
@@ -25,7 +25,7 @@ DefaultDirName={autopf64}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 OutputDir=output
-OutputBaseFilename=AnalogtoKey_Setup_v0.3.5
+OutputBaseFilename=AnalogtoKey_Setup_v0.4
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern

@@ -9,10 +9,11 @@ namespace AnalogtoKey.Services
     {
         private MappingProfile _profile;
 
-        private readonly Dictionary<string, HashSet<ushort>>          _held      = new();
-        private readonly Dictionary<string, int[]>                     _prevSteps = new();
-        private readonly Dictionary<string, (bool up, bool down)[]>   _cpHeld    = new();
-        private readonly Dictionary<string, StepQueue?[]>              _queues    = new();
+        private readonly Dictionary<string, HashSet<ushort>>                          _held      = new();
+        private readonly Dictionary<string, int[]>                                     _prevSteps = new();
+        private readonly Dictionary<string, (bool up, bool down)[]>                   _cpHeld    = new();
+        private readonly Dictionary<string, StepQueue?[]>                              _queues    = new();
+        private readonly Dictionary<string, Dictionary<int, (ushort key, ushort mod)>> _heldBtns  = new();
 
         public event Action<string, string, ushort>? AxisStepSent;
         public event Action<ushort>?                 KeyMuted;
@@ -34,6 +35,7 @@ namespace AnalogtoKey.Services
             {
                 foreach (var h in _held.Values) h.Clear();
                 _cpHeld.Clear();
+                foreach (var b in _heldBtns.Values) b.Clear();
             }
             IsTransmitting = value;
         }
@@ -61,11 +63,12 @@ namespace AnalogtoKey.Services
                     continue;
                 }
 
-                int axCount = mapping.AxisMappings.Count;
-                var steps   = GetOrCreatePrevSteps(state.DeviceGuid, axCount);
-                var cpHeld  = GetOrCreateCpHeld(state.DeviceGuid, axCount);
-                var queues  = GetOrCreateQueues(state.DeviceGuid, mapping.AxisMappings);
-                ProcessStick(state, mapping, held, steps, cpHeld, AxisStepSent, _profile.KeyHoldMs, IsTransmitting, KeyMuted, queues);
+                int axCount  = mapping.AxisMappings.Count;
+                var steps    = GetOrCreatePrevSteps(state.DeviceGuid, axCount);
+                var cpHeld   = GetOrCreateCpHeld(state.DeviceGuid, axCount);
+                var queues   = GetOrCreateQueues(state.DeviceGuid, mapping.AxisMappings);
+                var heldBtns = GetOrCreateHeldBtns(state.DeviceGuid);
+                ProcessStick(state, mapping, held, steps, cpHeld, AxisStepSent, IsTransmitting, KeyMuted, queues, heldBtns);
             }
         }
 
@@ -90,6 +93,13 @@ namespace AnalogtoKey.Services
             return held;
         }
 
+        private Dictionary<int, (ushort key, ushort mod)> GetOrCreateHeldBtns(string guid)
+        {
+            if (!_heldBtns.TryGetValue(guid, out var d))
+                _heldBtns[guid] = d = new();
+            return d;
+        }
+
         // Called when axis name changes in UI — resets step tracking and releases held CP keys
         public void ResetAxisState(string guid)
         {
@@ -112,9 +122,10 @@ namespace AnalogtoKey.Services
         private static void ProcessStick(
             StickState state, StickMapping mapping,
             HashSet<ushort> held, int[] prevSteps, (bool up, bool down)[] cpHeld,
-            Action<string, string, ushort>? axisStepSent, int holdMs,
+            Action<string, string, ushort>? axisStepSent,
             bool transmitting, Action<ushort>? keyMuted,
-            StepQueue?[]? queues = null)
+            StepQueue?[]? queues,
+            Dictionary<int, (ushort key, ushort mod)> heldBtns)
         {
             if (!state.IsConnected)
             {
@@ -128,15 +139,17 @@ namespace AnalogtoKey.Services
                         if (cpHeld[i].down && ax.CpDownKey != 0) KeySender.KeyUp(ax.CpDownKey);
                         cpHeld[i] = (false, false);
                     }
+                    ReleaseBtns(heldBtns);
                 }
                 else
                 {
                     held.Clear();
+                    heldBtns.Clear();
                 }
                 return;
             }
 
-            // ── Buttons + hat ────────────────────────────────────────────────
+            // ── Hat ──────────────────────────────────────────────────────────
             var desired = new HashSet<ushort>();
 
             if (state.HatSwitch != -1)
@@ -146,10 +159,6 @@ namespace AnalogtoKey.Services
                 if (mapping.HatMappings.TryGetValue(normalized, out var hatKey) && hatKey != 0)
                     desired.Add(hatKey);
             }
-
-            for (int i = 0; i < state.Buttons.Length; i++)
-                if (state.Buttons[i] && mapping.ButtonMappings.TryGetValue(i, out var btnKey) && btnKey != 0)
-                    desired.Add(btnKey);
 
             if (transmitting)
             {
@@ -166,12 +175,43 @@ namespace AnalogtoKey.Services
             held.Clear();
             foreach (var key in desired) held.Add(key);
 
+            // ── Buttons (with modifier support) ──────────────────────────────
+            for (int i = 0; i < state.Buttons.Length; i++)
+            {
+                mapping.ButtonMappings.TryGetValue(i, out ushort btnKey);
+                bool isPressed = state.Buttons[i] && btnKey != 0;
+                bool wasHeld   = heldBtns.ContainsKey(i);
+
+                if (isPressed && !wasHeld)
+                {
+                    mapping.ButtonModifiers.TryGetValue(i, out var mod);
+                    if (transmitting)
+                    {
+                        if (mod != 0) KeySender.KeyDown(mod);
+                        KeySender.KeyDown(btnKey);
+                    }
+                    else keyMuted?.Invoke(btnKey);
+                    heldBtns[i] = (btnKey, mod);
+                }
+                else if (!isPressed && wasHeld)
+                {
+                    var (key, mod) = heldBtns[i];
+                    if (transmitting)
+                    {
+                        KeySender.KeyUp(key);
+                        if (mod != 0) KeySender.KeyUp(mod);
+                    }
+                    heldBtns.Remove(i);
+                }
+            }
+
             // ── Axis mappings ────────────────────────────────────────────────
             int axCount = Math.Min(mapping.AxisMappings.Count, Math.Min(prevSteps.Length, cpHeld.Length));
             for (int i = 0; i < axCount; i++)
             {
-                var axMap = mapping.AxisMappings[i];
-                int range = axMap.CalMax - axMap.CalMin;
+                var axMap  = mapping.AxisMappings[i];
+                int holdMs = axMap.KeyHoldMs;
+                int range  = axMap.CalMax - axMap.CalMin;
                 if (range <= 0) continue;
 
                 int raw     = Math.Clamp(state.GetAxis(axMap.AxisName), axMap.CalMin, axMap.CalMax);
@@ -297,7 +337,7 @@ namespace AnalogtoKey.Services
                         }
 
                         // ── End-of-travel keypresses ──────────────────────────
-                        int maxStep = axMap.UseCenter ? axMap.StepsUp   :  axMap.StepsUp;
+                        int maxStep = axMap.UseCenter ? axMap.StepsUp   : axMap.StepsUp;
                         int minStep = axMap.UseCenter ? -axMap.StepsDown : 0;
 
                         if (axMap.MaxKey != 0 && curStep == maxStep && prevStep < maxStep)
@@ -414,10 +454,27 @@ namespace AnalogtoKey.Services
             held.Clear();
         }
 
+        private static void ReleaseBtns(Dictionary<int, (ushort key, ushort mod)> heldBtns)
+        {
+            foreach (var (key, mod) in heldBtns.Values)
+            {
+                KeySender.KeyUp(key);
+                if (mod != 0) KeySender.KeyUp(mod);
+            }
+            heldBtns.Clear();
+        }
+
+        private void ReleaseBtnsAll()
+        {
+            foreach (var btns in _heldBtns.Values)
+                ReleaseBtns(btns);
+        }
+
         public void ReleaseAll()
         {
             foreach (var held in _held.Values) ReleaseHeld(held);
             ReleaseCpAll();
+            ReleaseBtnsAll();
         }
     }
 }

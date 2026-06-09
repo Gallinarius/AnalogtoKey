@@ -17,7 +17,7 @@ Output: `src\bin\Release\net10.0-windows\publish\AnalogtoKey.exe`
 ### 2. Compile installer
 Open `JoyMap_Setup.iss` in Inno Setup → **Build → Compile** (Ctrl+F9)
 
-Output: `installer\output\AnalogtoKey_Setup_v0.1_Beta.exe`
+Output: `installer\output\AnalogtoKey_Setup_v0.45.exe`
 
 ## What the installer does
 - Installs `AnalogtoKey.exe` (self-contained, no .NET required)

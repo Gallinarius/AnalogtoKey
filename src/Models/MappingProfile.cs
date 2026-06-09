@@ -5,7 +5,6 @@ namespace AnalogtoKey.Models
     public class MappingProfile
     {
         public string Name { get; set; } = "Default";
-        public int KeyHoldMs { get; set; } = 50;
         public Dictionary<string, StickMapping> Controllers { get; set; } = new();
 
         public StickMapping GetOrCreate(string guid)
@@ -36,6 +35,7 @@ namespace AnalogtoKey.Models
             { 31500, 0 },
         };
 
-        public Dictionary<int, ushort> ButtonMappings { get; set; } = new();
+        public Dictionary<int, ushort> ButtonMappings  { get; set; } = new();
+        public Dictionary<int, ushort> ButtonModifiers { get; set; } = new();
     }
 }

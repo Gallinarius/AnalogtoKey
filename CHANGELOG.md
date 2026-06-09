@@ -4,6 +4,14 @@ All notable changes to AnalogtoKey are documented here.
 
 ---
 
+## [0.45] — 2026-06-09
+
+### Added
+- **Per-axis Key Hold** — `KeyHoldMs` is now configurable per axis (default 50 ms) instead of globally. Each axis shows its own "Hold: X ms" field in the editor. Old profiles default to 50 ms per axis.
+- **Button modifier keys** — each button mapping can now have a modifier key (Ctrl / Shift / Alt) via a dropdown in the button row. The modifier is held down before the key and released after — e.g. Button 1 → Ctrl+A. Modifier is stored separately so existing profiles are fully backward-compatible.
+
+---
+
 ## [0.4] — 2026-06-08
 
 ### Added

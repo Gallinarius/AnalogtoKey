@@ -40,6 +40,7 @@ public class AxisStepMapping
 
     // Stacked mode — queue keypresses sequentially instead of fire-and-forget (prevents step desync at high speed)
     public bool StackedMode { get; set; } = false;
+    public int  KeyHoldMs   { get; set; } = 50; // hold duration per pulsed keypress (ms)
     public int  KeyPauseMs  { get; set; } = 0;  // pause between queued presses; 0 = same as KeyHoldMs
 
     // UI state: whether the Advanced section is expanded in the editor

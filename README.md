@@ -6,7 +6,7 @@ AnalogtoKey reads input from USB joysticks and arcade sticks and converts every 
 
 ## Download
 
-➡ **[Download AnalogtoKey_Setup_v0.4.exe](https://github.com/Gallinarius/AnalogtoKey/releases/latest)**
+➡ **[Download AnalogtoKey_Setup_v0.45.exe](https://github.com/Gallinarius/AnalogtoKey/releases/latest)**
 
 No .NET installation required. Self-contained, runs on Windows 10 and 11 (64-bit).
 
@@ -44,12 +44,14 @@ Unlike TSW-specific tools, AnalogtoKey works at the Windows level — it sends r
 ## Features
 
 - Map any **button** (1–32) to any keyboard key — devices with more than 16 buttons get a paged UI (1–16 / 17–32)
+- **Button modifier keys** — add Ctrl / Shift / Alt to any button mapping via a dropdown (e.g. Button 1 → Ctrl+A)
 - Map all **8 D-pad directions** independently
 - Map **analog axes** (X/Y/Z/Rx/Ry/Rz + Slider axes) with three modes:
   - **Steps Mode** — axis sends a keypress per step (up to 99 steps, MIN/MAX calibration)
   - **Center Mode** — splits axis at centre with a configurable dead zone; throttle and brake get independent step counts (e.g. 9 throttle + 9 brake = 19 positions)
   - **Constant Pressure** — holds a key down while the axis is past the dead zone, releases when back to neutral
   - Modes can be combined freely
+- **Per-axis key hold duration** — configure hold time (ms) independently per axis
 - **Live raw axis value** — shows the raw axis reading in the editor (`raw:30942`) to help locate centre points and dial in dead zones
 - **Multiple named profiles** — New / Copy / Rename / Delete via the Edit dropdown
 - **Unsaved changes protection** — save indicator (`●`) and prompt before discarding edits
@@ -62,7 +64,7 @@ Unlike TSW-specific tools, AnalogtoKey works at the Windows level — it sends r
 
 ## Installation
 
-1. Download `AnalogtoKey_Setup_v0.4.exe` from [Releases](https://github.com/Gallinarius/AnalogtoKey/releases/latest)
+1. Download `AnalogtoKey_Setup_v0.45.exe` from [Releases](https://github.com/Gallinarius/AnalogtoKey/releases/latest)
 2. Run it (administrator rights may be required)
 3. The installer offers to install the **HidHide** driver — recommended for Running Train and similar games
 4. Restart Windows if HidHide was installed

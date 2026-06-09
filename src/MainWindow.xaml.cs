@@ -486,25 +486,6 @@ public partial class MainWindow : Window
         var divider    = new Border { Background = new SolidColorBrush(Color.FromRgb(50, 50, 50)) };
         var rightPanel = new StackPanel { Margin = new Thickness(16, 0, 0, 0) };
 
-        // ── Key Hold (profil-global) ──────────────────────────────
-        var holdRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 4) };
-        holdRow.Children.Add(new TextBlock
-        {
-            Text = "Key Hold:", Foreground = new SolidColorBrush(Color.FromRgb(150, 150, 150)),
-            FontFamily = new FontFamily("Segoe UI"), FontSize = 12,
-            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0)
-        });
-        var (holdCtrl, _) = MakeNumField(_currentProfile.KeyHoldMs, 1, 500,
-            () => _currentProfile.KeyHoldMs, v => _currentProfile.KeyHoldMs = v, w: 44);
-        holdRow.Children.Add(holdCtrl);
-        holdRow.Children.Add(new TextBlock
-        {
-            Text = "ms", Foreground = new SolidColorBrush(Color.FromRgb(120, 120, 120)),
-            FontFamily = new FontFamily("Segoe UI"), FontSize = 12,
-            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 0, 0)
-        });
-        leftPanel.Children.Add(holdRow);
-
         // ── Venstre: D-PAD + AKSER ───────────────────────────────
         AddSectionHeader(leftPanel, "D-PAD");
         foreach (var (degrees, vk) in mapping.HatMappings)
@@ -534,7 +515,8 @@ public partial class MainWindow : Window
         for (int i = firstBtn; i <= lastBtn; i++)
         {
             mapping.ButtonMappings.TryGetValue(i, out ushort btnVk);
-            var (row, btn) = MakeRow($"Button {i + 1}", btnVk, guid, "btn", i);
+            mapping.ButtonModifiers.TryGetValue(i, out ushort btnMod);
+            var (row, btn) = MakeButtonRow($"Button {i + 1}", btnVk, btnMod, guid, i, mapping);
             _mappingButtons[$"{guid}|btn|{i}"] = btn;
             rightPanel.Children.Add(row);
         }
@@ -894,6 +876,14 @@ public partial class MainWindow : Window
             return cb;
         }
 
+        // ── Hold ms (per-axis) ─────────────────────────────────────
+        var holdRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
+        holdRow.Children.Add(new TextBlock { Text = "Hold:", Foreground = new SolidColorBrush(Color.FromRgb(150, 150, 150)), FontFamily = new FontFamily("Segoe UI"), FontSize = 12, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) });
+        var (holdCtrl, _) = MakeNumField(axMap.KeyHoldMs, 1, 500, () => axMap.KeyHoldMs, v => axMap.KeyHoldMs = v, w: 44);
+        holdRow.Children.Add(holdCtrl);
+        holdRow.Children.Add(new TextBlock { Text = "ms", Foreground = new SolidColorBrush(Color.FromRgb(120, 120, 120)), FontFamily = new FontFamily("Segoe UI"), FontSize = 12, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 0, 0) });
+        sp.Children.Add(holdRow);
+
         // ── Mode checkboxes ────────────────────────────────────────
         var modeRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 6) };
         modeRow.Children.Add(MakeCb("Steps Mode", axMap.UseStandard, v => axMap.UseStandard = v));
@@ -1125,6 +1115,83 @@ public partial class MainWindow : Window
         return (grid, keyBtn);
     }
 
+    private (UIElement row, Button keyBtn) MakeButtonRow(
+        string label, ushort vk, ushort mod, string guid, int btnIndex, StickMapping mapping)
+    {
+        var grid = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(64) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
+
+        var lbl = new TextBlock
+        {
+            Text = label, Foreground = new SolidColorBrush(Color.FromRgb(180, 180, 180)),
+            FontFamily = new FontFamily("Segoe UI"), FontSize = 13, VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(lbl, 0);
+
+        var keyBtn = new Button
+        {
+            Content = VKeyNames.GetName(vk), Tag = $"{guid}|btn|{btnIndex}",
+            Foreground = vk == 0 ? ColTextDim : ColTextBright,
+            Background = vk == 0 ? ColUnassigned : ColAssigned,
+            BorderBrush = new SolidColorBrush(Color.FromRgb(80, 80, 80)), BorderThickness = new Thickness(1),
+            FontFamily = new FontFamily("Consolas"), FontSize = 12,
+            Padding = new Thickness(8, 4, 8, 4), HorizontalAlignment = HorizontalAlignment.Stretch,
+            Cursor = Cursors.Hand, Style = TryFindRes("KeyButton") as Style
+        };
+        keyBtn.Click += KeyButton_Click;
+        Grid.SetColumn(keyBtn, 1);
+
+        var modCombo = new ComboBox
+        {
+            Height = 28, Margin = new Thickness(4, 0, 0, 0),
+            Style = TryFindRes("DarkCombo") as Style,
+            ToolTip = "Modifier key"
+        };
+        modCombo.Items.Add(new ComboBoxItem { Content = "—",     Tag = (ushort)0 });
+        modCombo.Items.Add(new ComboBoxItem { Content = "Ctrl",  Tag = VKey.Control });
+        modCombo.Items.Add(new ComboBoxItem { Content = "Shift", Tag = VKey.Shift });
+        modCombo.Items.Add(new ComboBoxItem { Content = "Alt",   Tag = VKey.Alt });
+        modCombo.SelectedIndex = mod switch
+        {
+            VKey.Control => 1,
+            VKey.Shift   => 2,
+            VKey.Alt     => 3,
+            _            => 0
+        };
+        modCombo.SelectionChanged += (_, _) =>
+        {
+            if (modCombo.SelectedItem is ComboBoxItem item)
+            {
+                ushort newMod = (ushort)item.Tag;
+                if (newMod == 0)
+                    mapping.ButtonModifiers.Remove(btnIndex);
+                else
+                    mapping.ButtonModifiers[btnIndex] = newMod;
+                _mapper.UpdateProfile(_currentProfile);
+                MarkDirty();
+            }
+        };
+        Grid.SetColumn(modCombo, 2);
+
+        var clearBtn = new Button
+        {
+            Content = "✕", Tag = $"{guid}|btn|{btnIndex}",
+            Foreground = new SolidColorBrush(Color.FromRgb(150, 150, 150)),
+            Background = new SolidColorBrush(Color.FromRgb(40, 40, 40)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(70, 70, 70)), BorderThickness = new Thickness(1),
+            FontSize = 12, Width = 28, Height = 28, Margin = new Thickness(4, 0, 0, 0),
+            HorizontalAlignment = HorizontalAlignment.Left, Cursor = Cursors.Hand, ToolTip = "Clear mapping"
+        };
+        clearBtn.Click += ClearButton_Click;
+        Grid.SetColumn(clearBtn, 3);
+
+        grid.Children.Add(lbl); grid.Children.Add(keyBtn); grid.Children.Add(modCombo); grid.Children.Add(clearBtn);
+        return (grid, keyBtn);
+    }
+
     private static string GetInputLabel(string key)
     {
         var parts = key.Split('|', 3);
@@ -1185,7 +1252,11 @@ public partial class MainWindow : Window
     {
         var mapping = _currentProfile.GetOrCreate(guid);
         if      (type == "hat")      mapping.HatMappings[int.Parse(index)]            = vk;
-        else if (type == "btn")      mapping.ButtonMappings[int.Parse(index)]         = vk;
+        else if (type == "btn")
+        {
+            mapping.ButtonMappings[int.Parse(index)] = vk;
+            if (vk == 0) mapping.ButtonModifiers.Remove(int.Parse(index));
+        }
         else if (type == "axisup")   mapping.AxisMappings[int.Parse(index)].UpKey     = vk;
         else if (type == "axisdown") mapping.AxisMappings[int.Parse(index)].DownKey   = vk;
         else if (type == "cpup")     mapping.AxisMappings[int.Parse(index)].CpUpKey   = vk;
@@ -1664,7 +1735,7 @@ public partial class MainWindow : Window
         try
         {
             using var client = new System.Net.Http.HttpClient();
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("AnalogtoKey/0.4");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("AnalogtoKey/0.45");
             var data = await client.GetByteArrayAsync(downloadUrl);
             await System.IO.File.WriteAllBytesAsync(tempPath, data);
 

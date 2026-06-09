@@ -1,7 +1,7 @@
 # AnalogtoKey — User Guide
 
 > Map joystick & arcade stick buttons to keyboard keys
-> Version 0.4 — Windows 10 / 11
+> Version 0.45 — Windows 10 / 11
 
 ---
 
@@ -39,9 +39,10 @@ Some games — such as Running Train — detect any connected USB controller and
 
 ### Key features
 
-- Map any button (1–16) to any keyboard key
+- Map any button (1–32) to any keyboard key; add Ctrl / Shift / Alt modifier per button
 - Map all 8 D-pad directions independently
-- Map analog axes (X/Y/Z/Rx/Ry/Rz) with three modes: Steps, Center, and Constant Pressure
+- Map analog axes (X/Y/Z/Rx/Ry/Rz + Slider axes) with three modes: Steps, Center, and Constant Pressure
+- Per-axis key hold duration (ms) — configurable independently for each axis
 - Multiple named profiles — switch instantly between games
 - Unsaved changes protection with visual indicator on the Save Profile button
 - Scan for new devices without restarting the app
@@ -99,7 +100,7 @@ The main window is divided into six areas. The screenshot below shows a fully co
 | **(3) Status bar** | Three live indicators: number of active devices, the last key sent, and HidHide status (Active / Inactive). |
 | **(4) D-PAD section** | Eight direction slots — Up, Up-Right, Right, Down-Right, Down, Down-Left, Left, Up-Left. Click any slot then press a key to assign. Click **x** to clear. |
 | **(5) Axes section** | Six vertical bars visualise live axis position (X/Y/Z/Rx/Ry/Rz). The panel below the bars shows the selected axis detail (see Chapter 5). |
-| **(6) Buttons section** | 16 button slots. Blue = assigned, dark = unassigned. Click any slot then press a key to assign. |
+| **(6) Buttons section** | Up to 32 button slots (paged 1–16 / 17–32). Blue = assigned, dark = unassigned. Click the key slot to assign a key. Use the small dropdown next to each button to add a modifier key (Ctrl / Shift / Alt). |
 
 ---
 
@@ -117,11 +118,12 @@ A profile stores a complete set of mappings — D-pad, buttons, and axes — for
 
 ### Assigning a key to a button
 
-1. Locate the button slot in the **KNAPPER** section (Button 1 to Button 16).
-2. Click the slot — it turns into a blinking capture field.
+1. Locate the button slot in the **KNAPPER** section (Button 1 to Button 32).
+2. Click the key slot — it turns into a blinking capture field.
 3. Press the key you want on your keyboard (e.g. Space, W, F1).
 4. The slot shows the captured key name and turns blue.
-5. Repeat for each button you want to map.
+5. Optionally, open the **modifier dropdown** next to the button and choose Ctrl, Shift, or Alt. The modifier will be held down together with the key (e.g. Ctrl+A).
+6. Repeat for each button you want to map.
 
 ### Assigning a key to a D-pad direction
 
@@ -148,11 +150,12 @@ Axes handle analog inputs — throttle levers, joystick tilt, rotary knobs, and 
 
 1. In the **AKSER** section, click **+ Axis**. A new entry appears in the selector drop-down.
 2. Give it a descriptive name in the **Name** field (e.g. *Throttle*, *Brake*).
-3. Choose the physical axis: AxisX, AxisY, AxisZ, AxisRx, AxisRy, or AxisRz.
-4. Set the number of **Steps** (1–8). Steps = 1 means binary on/off. Steps = 5 means five evenly-spaced zones — useful for a throttle lever.
-5. Click the **Up ▲** slot and press the key for the positive direction.
-6. Click the **Down ▼** slot and press the key for the negative direction.
-7. Calibrate the range — see *Calibrating MIN / MAX* below.
+3. Choose the physical axis: AxisX, AxisY, AxisZ, AxisRx, AxisRy, AxisRz, Slider0, or Slider1.
+4. Set **Hold: X ms** — how long each pulsed keypress is held down (default 50 ms). Tune this per axis to match the target game's key repeat speed.
+5. Set the number of **Steps** (1–99). Steps = 1 means binary on/off. Steps = 5 means five evenly-spaced zones — useful for a throttle lever.
+6. Click the **Up ▲** slot and press the key for the positive direction.
+7. Click the **Down ▼** slot and press the key for the negative direction.
+8. Calibrate the range — see *Calibrating MIN / MAX* below.
 
 ### Calibrating MIN / MAX
 
@@ -215,4 +218,4 @@ Select the axis in the drop-down and click **− Remove**. The entry is deleted 
 
 ---
 
-*AnalogtoKey v0.4 — Profiles: `%AppData%\AnalogtoKey\profiles\`*
+*AnalogtoKey v0.45 — Profiles: `%AppData%\AnalogtoKey\profiles\`*

@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Windows;
+using System.Windows.Threading;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -41,11 +43,14 @@ public partial class MainWindow : Window
     private AxisBar[] _axisBars = Array.Empty<AxisBar>();
 
     // Tast-fangst
-    private bool    _capturing;
-    private string  _captureGuid  = "";
-    private string  _captureType  = "";
-    private string  _captureIndex = "";
-    private Button? _captureButton;
+    private volatile bool _capturing;
+    private string        _captureGuid  = "";
+    private string        _captureType  = "";
+    private string        _captureIndex = "";
+    private Button?       _captureButton;
+
+    // UI-opdatering: 1 = en InvokeAsync er allerede køet, ny springes over
+    private int _uiPending;
 
     // Live highlighting
     private readonly Dictionary<string, Button>    _mappingButtons   = new();
@@ -62,12 +67,17 @@ public partial class MainWindow : Window
     private MenuItem    _minimizeToTrayItem = null!;
     private bool        _isDirty;
 
-    private static readonly SolidColorBrush ColAssigned   = new(Color.FromRgb(21, 101, 192));
-    private static readonly SolidColorBrush ColUnassigned = new(Color.FromRgb(35, 35, 35));
-    private static readonly SolidColorBrush ColPressed    = new(Color.FromRgb(76, 175, 80));
-    private static readonly SolidColorBrush ColCapture    = new(Color.FromRgb(230, 120, 0));
-    private static readonly SolidColorBrush ColTextDim    = new(Color.FromRgb(100, 100, 100));
-    private static readonly SolidColorBrush ColTextBright = new(Color.FromRgb(255, 255, 255));
+    private static readonly SolidColorBrush ColAssigned      = new(Color.FromRgb( 21, 101, 192));
+    private static readonly SolidColorBrush ColUnassigned    = new(Color.FromRgb( 35,  35,  35));
+    private static readonly SolidColorBrush ColPressed       = new(Color.FromRgb( 76, 175,  80));
+    private static readonly SolidColorBrush ColCapture       = new(Color.FromRgb(230, 120,   0));
+    private static readonly SolidColorBrush ColTextDim       = new(Color.FromRgb(100, 100, 100));
+    private static readonly SolidColorBrush ColTextBright    = new(Color.FromRgb(255, 255, 255));
+    // Brushes used every frame in OnStateUpdated — cached to avoid GC pressure
+    private static readonly SolidColorBrush ColRed           = new(Color.FromRgb(255,  82,  82));
+    private static readonly SolidColorBrush ColAxisBorderOff = new(Color.FromRgb( 55,  55,  55));
+    private static readonly SolidColorBrush ColSegInactive   = new(Color.FromRgb( 30,  30,  48));
+    private static readonly SolidColorBrush ColSegNeutral    = new(Color.FromRgb( 70,  70,  90));
 
     private static readonly Dictionary<int, string> HatNames = new()
     {
@@ -1307,8 +1317,10 @@ public partial class MainWindow : Window
         if (!_capturing)
             _mapper.ProcessStates(states);
 
-        Dispatcher.Invoke(() =>
+        if (Interlocked.Exchange(ref _uiPending, 1) == 0)
+        Dispatcher.InvokeAsync(() =>
         {
+            _uiPending = 0;
             var selectedState = states.FirstOrDefault(s => s.DeviceGuid == _selectedGuid);
             bool connected    = selectedState?.IsConnected ?? false;
 
@@ -1395,13 +1407,13 @@ public partial class MainWindow : Window
             }
 
             // ── Controller dot + status tekst ────────────────────
-            ControllerDot.Fill        = connected ? ColPressed : new SolidColorBrush(Color.FromRgb(255, 82, 82));
+            ControllerDot.Fill        = connected ? ColPressed : ColRed;
             ControllerStatusText.Text = connected
                 ? (ControllerCombo.SelectedItem as ControllerItem)?.Name ?? ""
                 : (string.IsNullOrEmpty(_selectedGuid) ? "No controller found" : "Not connected");
 
             int count = states.Count(s => s.IsConnected);
-            StatusDot.Fill  = count > 0 ? ColPressed : new SolidColorBrush(Color.FromRgb(255, 82, 82));
+            StatusDot.Fill  = count > 0 ? ColPressed : ColRed;
             StatusText.Text = count > 0 ? $"{count} device(s) active" : "No devices found";
 
             // ── Live statusbar ───────────────────────────────────
@@ -1435,10 +1447,7 @@ public partial class MainWindow : Window
                 foreach (var bar in barSet)
                 {
                     // Kantfarve: blå = tildelt, grå = ikke tildelt
-                    bar.OuterBorder.BorderBrush = new SolidColorBrush(
-                        assignedAxes.Contains(bar.AxisName)
-                            ? Color.FromRgb(21, 101, 192)
-                            : Color.FromRgb(55, 55, 55));
+                    bar.OuterBorder.BorderBrush = assignedAxes.Contains(bar.AxisName) ? ColAssigned : ColAxisBorderOff;
 
                     if (bar.Segments != null)
                     {
@@ -1473,16 +1482,14 @@ public partial class MainWindow : Window
                             int nIdx = bar.NeutralSegIdx;
                             for (int si = 0; si < bar.Segments.Length; si++)
                             {
-                                Color c;
+                                SolidColorBrush seg;
                                 if (si == nIdx)
-                                    c = Color.FromRgb(70, 70, 90);                                         // neutral — always visible
+                                    seg = ColSegNeutral;                                                    // neutral — always visible
                                 else if (si > nIdx)
-                                    c = curStep > 0 && si <= nIdx + curStep                                // throttle zone (top)
-                                        ? Color.FromRgb(76, 175, 80) : Color.FromRgb(30, 30, 48);
+                                    seg = curStep > 0 && si <= nIdx + curStep ? ColPressed : ColSegInactive; // throttle zone (top)
                                 else
-                                    c = curStep < 0 && si >= nIdx + curStep                                // brake zone (bottom)
-                                        ? Color.FromRgb(255, 82, 82) : Color.FromRgb(30, 30, 48);
-                                bar.Segments[si].Background = new SolidColorBrush(c);
+                                    seg = curStep < 0 && si >= nIdx + curStep ? ColRed    : ColSegInactive; // brake zone (bottom)
+                                bar.Segments[si].Background = seg;
                             }
                         }
                         else
@@ -1500,8 +1507,7 @@ public partial class MainWindow : Window
                                 }
                             }
                             for (int si = 0; si < bar.Segments.Length; si++)
-                                bar.Segments[si].Background = new SolidColorBrush(
-                                    si < curStep ? Color.FromRgb(76, 175, 80) : Color.FromRgb(30, 30, 48));
+                                bar.Segments[si].Background = si < curStep ? ColPressed : ColSegInactive;
                         }
                     }
                     else if (bar.EmptyRow != null && bar.FilledRow != null)
@@ -1597,7 +1603,7 @@ public partial class MainWindow : Window
                     btn.Content    = VKeyNames.GetName(vk);
                 }
             }
-        });
+        }, DispatcherPriority.Background);
     }
 
     private ushort GetVkForKey(string key)

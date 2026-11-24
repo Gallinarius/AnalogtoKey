@@ -8,6 +8,11 @@ namespace AnalogtoKey.Services
         [DllImport("user32.dll")]
         private static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
 
+        [DllImport("user32.dll")]
+        private static extern uint MapVirtualKey(uint uCode, uint uMapType);
+
+        private const uint MAPVK_VK_TO_VSC = 0;
+
         private const uint INPUT_KEYBOARD = 1;
         private const uint KEYEVENTF_KEYUP = 0x0002;
 
@@ -50,6 +55,7 @@ namespace AnalogtoKey.Services
 
         private static void SendKey(ushort vkCode, bool keyUp)
         {
+            ushort scan = (ushort)MapVirtualKey(vkCode, MAPVK_VK_TO_VSC);
             var input = new INPUT
             {
                 type = INPUT_KEYBOARD,
@@ -58,7 +64,7 @@ namespace AnalogtoKey.Services
                     ki = new KEYBDINPUT
                     {
                         wVk = vkCode,
-                        wScan = 0,
+                        wScan = scan,
                         dwFlags = keyUp ? KEYEVENTF_KEYUP : 0,
                         time = 0,
                         dwExtraInfo = IntPtr.Zero

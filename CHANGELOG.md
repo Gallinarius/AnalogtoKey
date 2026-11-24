@@ -4,6 +4,13 @@ All notable changes to AnalogtoKey are documented here.
 
 ---
 
+## [0.51] — 2026-11-24
+
+### Fixed
+- **Unity game compatibility (e.g. Railroader)** — `SendInput` now populates `wScan` (hardware scan code) via `MapVirtualKey` alongside the existing virtual key code. Unity-based games typically read scan codes rather than virtual key codes, causing keypresses to be silently ignored. Both fields are now populated, maximising compatibility across all game engines.
+
+---
+
 ## [0.45] — 2026-06-09
 
 ### Added
